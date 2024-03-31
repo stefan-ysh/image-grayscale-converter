@@ -1,0 +1,11 @@
+.idea/
+*.iml
+*.swp
+*.swo
+*.class
+*.lock
+*.log
+venv/
+*.pyc
+*.pyo
+*.pyd
