@@ -45,7 +45,7 @@ def select_image():
     global img, gray_img, pixel_data_with_coordinates
     filename = filedialog.askopenfilename(
         title="Select image file",
-        filetypes=(("Image files", "*.jpg;*.jpeg;*.png;*.bmp"), ("All files", "*.*"))
+        filetypes=(("Image files", "*.jpg *.jpeg *.png *.bmp"), ("All files", "*.*"))
     )
     if not filename:
         return
