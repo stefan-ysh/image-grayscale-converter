@@ -29,10 +29,9 @@ mouse_pressed = False
 
 rect_start = None
 rect_end = None
-rect_thickness = 2
+rect_thickness = 1
 
 line_start = None
-line_thickness = 1
 
 mode = "rectangle"
 
