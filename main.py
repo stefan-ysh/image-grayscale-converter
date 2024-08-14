@@ -86,10 +86,10 @@ dragging = False
 drag_start = None
 resizing = None
 min_rect_size = 20
-circle_radius = 5  # 圆圈半径
-highlight_color = (0, 255, 0)  # 高亮颜色（绿色）
-MIN_RECT_WIDTH = 20  # 最小矩形宽度
-MIN_RECT_HEIGHT = 20  # 最小矩形高度
+circle_radius = 5
+highlight_color = (0, 255, 0)
+MIN_RECT_WIDTH = 20
+MIN_RECT_HEIGHT = 20
 
 
 def hex_to_bgr(hex_color):
