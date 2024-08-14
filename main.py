@@ -7,7 +7,6 @@ from openpyxl.chart import LineChart, Reference
 import pandas as pd
 from datetime import datetime
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from tkinter import colorchooser
 from tkinter import messagebox
 from image_processor import ImageProcessor
 import numpy as np
@@ -23,7 +22,7 @@ mouse_coordinates = []
 img = None
 gray_img = None
 
-line_colors = ["#FF0000", "#FFFF00"]  # 红色和黄色
+line_color = "#0000FF"  # 蓝色
 line_width = 1
 mouse_pressed = False
 
@@ -33,49 +32,126 @@ rect_thickness = 2
 
 line_start = None
 line_thickness = 1
-current_color_index = 0
 
 mode = "rectangle"
 
 MAX_POINTS = 1000  # 设置初始最大点数
 
+# 新增变量
+dragging = False
+drag_start = None
+resizing = None
+close_button_size = 20
+min_rect_size = 20
+
 def hex_to_bgr(hex_color):
     hex_color = hex_color.lstrip("#")
     return tuple(int(hex_color[i : i + 2], 16) for i in (4, 2, 0))  # BGR 顺序
 
-
 def mouse_callback(event, x, y, flags, param):
-    global rect_start, rect_end, mouse_pressed, mouse_coordinates, rectangles, line_start, lines, current_color_index
+    global rect_start, rect_end, mouse_pressed, mouse_coordinates, rectangles, line_start, lines
+    global dragging, drag_start, resizing
 
     if mode == "mouse_hover":
         print("do nothing")
     elif mode == "rectangle":
         if event == cv2.EVENT_LBUTTONDOWN:
+            for i, (start, end, name, max_points) in enumerate(rectangles):
+                if is_point_in_close_button(x, y, start):
+                    rectangles.pop(i)
+                    update_display_image()
+                    update_plot()
+                    return
+                elif is_point_in_rect(x, y, start, end):
+                    dragging = True
+                    drag_start = (x, y)
+                    return
+                elif is_point_near_corner(x, y, start, end):
+                    resizing = get_resize_direction(x, y, start, end)
+                    drag_start = (x, y)
+                    return
             rect_start = (x, y)
             rect_end = None
         elif event == cv2.EVENT_MOUSEMOVE:
-            if rect_start:
+            if dragging:
+                dx = x - drag_start[0]
+                dy = y - drag_start[1]
+                for i, (start, end, name, max_points) in enumerate(rectangles):
+                    if is_point_in_rect(drag_start[0], drag_start[1], start, end):
+                        new_start = (start[0] + dx, start[1] + dy)
+                        new_end = (end[0] + dx, end[1] + dy)
+                        rectangles[i] = (new_start, new_end, name, max_points)
+                        break
+                drag_start = (x, y)
+                update_display_image()
+                update_plot()
+            elif resizing is not None:
+                for i, (start, end, name, max_points) in enumerate(rectangles):
+                    if is_point_near_corner(drag_start[0], drag_start[1], start, end):
+                        new_start, new_end = resize_rectangle(start, end, x, y, resizing)
+                        rectangles[i] = (new_start, new_end, name, max_points)
+                        break
+                update_display_image()
+                update_plot()
+            elif rect_start:
                 rect_end = (x, y)
                 update_display_image()
         elif event == cv2.EVENT_LBUTTONUP:
-            rect_end = (x, y)
-            if rect_start != rect_end:
-                rectangle_name = f"Rectangle {len(rectangles) + 1}"
-                rectangles.append(
-                    (
-                        rect_start,
-                        rect_end,
-                        line_colors[current_color_index],
-                        rectangle_name,
-                        MAX_POINTS,  # 添加当前的MAX_POINTS值
+            if dragging or resizing:
+                dragging = False
+                resizing = None
+            elif rect_start and rect_end:
+                if rect_start != rect_end:
+                    rectangle_name = f"Rectangle {len(rectangles) + 1}"
+                    rectangles.append(
+                        (
+                            rect_start,
+                            rect_end,
+                            rectangle_name,
+                            MAX_POINTS,
+                        )
                     )
-                )
-                current_color_index = (current_color_index + 1) % len(line_colors)
-                update_display_image()
-                update_plot_from_rectangle()
-            rect_start = None
-            rect_end = None
+                    update_display_image()
+                    update_plot()
+                rect_start = None
+                rect_end = None
 
+def is_point_in_close_button(x, y, start):
+    return start[0] <= x <= start[0] + close_button_size and start[1] <= y <= start[1] + close_button_size
+
+def is_point_in_rect(x, y, start, end):
+    return start[0] <= x <= end[0] and start[1] <= y <= end[1]
+
+def is_point_near_corner(x, y, start, end, threshold=10):
+    corners = [start, (start[0], end[1]), end, (end[0], start[1])]
+    return any(abs(x - cx) < threshold and abs(y - cy) < threshold for cx, cy in corners)
+
+def get_resize_direction(x, y, start, end, threshold=10):
+    top_left = abs(x - start[0]) < threshold and abs(y - start[1]) < threshold
+    top_right = abs(x - end[0]) < threshold and abs(y - start[1]) < threshold
+    bottom_left = abs(x - start[0]) < threshold and abs(y - end[1]) < threshold
+    bottom_right = abs(x - end[0]) < threshold and abs(y - end[1]) < threshold
+
+    if top_left:
+        return "top_left"
+    elif top_right:
+        return "top_right"
+    elif bottom_left:
+        return "bottom_left"
+    elif bottom_right:
+        return "bottom_right"
+    else:
+        return None
+
+def resize_rectangle(start, end, x, y, direction):
+    if direction == "top_left":
+        return (x, y), end
+    elif direction == "top_right":
+        return (start[0], y), (x, end[1])
+    elif direction == "bottom_left":
+        return (x, start[1]), (end[0], y)
+    elif direction == "bottom_right":
+        return start, (x, y)
 
 def update_display_image():
     if img is None or gray_img is None:
@@ -84,8 +160,8 @@ def update_display_image():
     display_img = gray_img.copy()
 
     if mode == "rectangle":
-        for start, end, color, name, _ in rectangles:
-            bgr_color = hex_to_bgr(color)
+        for start, end, name, _ in rectangles:
+            bgr_color = hex_to_bgr(line_color)
             cv2.rectangle(display_img, start, end, bgr_color, rect_thickness)
             text_position = (start[0], start[1] - 10)
             cv2.putText(
@@ -98,34 +174,30 @@ def update_display_image():
                 1,
                 cv2.LINE_AA,
             )
+            # 绘制关闭按钮
+            cv2.rectangle(display_img, start, (start[0] + close_button_size, start[1] + close_button_size), (0, 0, 255), 1)
+            cv2.line(display_img, start, (start[0] + close_button_size, start[1] + close_button_size), (0, 0, 255), 1)
+            cv2.line(display_img, (start[0] + close_button_size, start[1]), (start[0], start[1] + close_button_size), (0, 0, 255), 1)
+
+        if rect_start and rect_end:
+            cv2.rectangle(display_img, rect_start, rect_end, hex_to_bgr(line_color), rect_thickness)
 
     cv2.imshow("Gray Image", display_img)
 
-
-def update_plot_from_rectangle():
-    global pixel_data_with_coordinates
-
-    if not rectangles:
-        return
-
+def update_plot():
     plt.clf()
     num_plots = len(rectangles)
     cols = 2
     rows = (num_plots + 1) // cols
 
-    for idx, (start, end, color, name, max_points) in enumerate(rectangles):
+    for idx, (start, end, name, max_points) in enumerate(rectangles):
         x1, y1 = start
         x2, y2 = end
-        x1, x2 = sorted(
-            [max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))]
-        )
-        y1, y2 = sorted(
-            [max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))]
-        )
+        x1, x2 = sorted([max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))])
+        y1, y2 = sorted([max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))])
 
         rect_pixels = gray_img[y1:y2, x1:x2].flatten()
 
-        # 如果像素点数量超过max_points，进行降采样
         if len(rect_pixels) > max_points:
             indices = np.linspace(0, len(rect_pixels) - 1, max_points, dtype=int)
             rect_pixels = rect_pixels[indices]
@@ -135,7 +207,6 @@ def update_plot_from_rectangle():
         row = idx // cols
         col = idx % cols
         
-        # 如果是最后一行且只有一个图，则占据整行
         if row == rows - 1 and num_plots % 2 != 0:
             ax = plt.subplot(rows, 1, row + 1)
         else:
@@ -143,121 +214,10 @@ def update_plot_from_rectangle():
         
         x_data = [i for i, _ in rect_data]
         y_data = [gray_value for _, gray_value in rect_data]
-        ax.plot(x_data, y_data, marker="", linewidth=line_width, color=color)
+        ax.plot(x_data, y_data, marker="", linewidth=line_width, color=line_color)
         ax.set_title(f"{name} (Points: {max_points})")
         ax.set_xlabel("Pixel Index")
         ax.set_ylabel("Gray Value")
-
-    plt.tight_layout()
-    canvas.draw()
-
-
-def update_plot():
-    plt.clf()
-    num_plots = len(lines) + len(rectangles) + (1 if mouse_coordinates else 0)
-    cols = 2
-    rows = (num_plots + 1) // cols
-
-    plot_index = 1
-
-    if mouse_coordinates:
-        x_data = []
-        y_data = []
-        for i, (x, y) in enumerate(mouse_coordinates):
-            if 0 <= x < gray_img.shape[1] and 0 <= y < gray_img.shape[0]:
-                gray_value = gray_img[y, x]
-                x_data.append(i + 1)
-                y_data.append(gray_value)
-
-        # 如果点数超过MAX_POINTS，进行降采样
-        if len(x_data) > MAX_POINTS:
-            indices = np.linspace(0, len(x_data) - 1, MAX_POINTS, dtype=int)
-            x_data = [x_data[i] for i in indices]
-            y_data = [y_data[i] for i in indices]
-
-        ax = plt.subplot(rows, cols, plot_index)
-        ax.plot(
-            x_data,
-            y_data,
-            marker="",
-            linewidth=line_width,
-            label="Mouse Path",
-            color="blue",
-        )
-        ax.set_title(f"Mouse Path (Points: {MAX_POINTS})")
-        ax.set_xlabel("Pixel Index")
-        ax.set_ylabel("Gray Value")
-        plot_index += 1
-
-    for idx, (start, end, color, name) in enumerate(lines):
-        x_data = []
-        y_data = []
-        if start and end:
-            x1, y1 = start
-            x2, y2 = end
-            num_points = max(abs(x2 - x1), abs(y2 - y1)) + 1
-            for i in range(num_points):
-                x = int(x1 + (x2 - x1) * i / (num_points - 1))
-                y = int(y1 + (y2 - y1) * i / (num_points - 1))
-                if 0 <= x < gray_img.shape[1] and 0 <= y < gray_img.shape[0]:
-                    gray_value = gray_img[y, x]
-                    x_data.append(i + 1)
-                    y_data.append(gray_value)
-
-            # 如果点数超过MAX_POINTS，进行降采样
-            if len(x_data) > MAX_POINTS:
-                indices = np.linspace(0, len(x_data) - 1, MAX_POINTS, dtype=int)
-                x_data = [x_data[i] for i in indices]
-                y_data = [y_data[i] for i in indices]
-
-            ax = plt.subplot(rows, cols, plot_index)
-            ax.plot(
-                x_data, y_data, marker="", linewidth=line_width, label=name, color=color
-            )
-            ax.set_title(f"{name} (Points: {MAX_POINTS})")
-            ax.set_xlabel("Pixel Index")
-            ax.set_ylabel("Gray Value")
-            plot_index += 1
-
-    for idx, (start, end, color, name, max_points) in enumerate(rectangles):
-        x_data = []
-        y_data = []
-        if start and end:
-            x1, y1 = start
-            x2, y2 = end
-            x_coords = [x1, x2, x2, x1, x1]
-            y_coords = [y1, y1, y2, y2, y1]
-            for i in range(len(x_coords) - 1):
-                x1, y1 = x_coords[i], y_coords[i]
-                x2, y2 = x_coords[i + 1], y_coords[i + 1]
-                num_points = max(abs(x2 - x1), abs(y2 - y1)) + 1
-                for j in range(num_points):
-                    x = int(x1 + (x2 - x1) * j / (num_points - 1))
-                    y = int(y1 + (y2 - y1) * j / (num_points - 1))
-                    if 0 <= x < gray_img.shape[1] and 0 <= y < gray_img.shape[0]:
-                        gray_value = gray_img[y, x]
-                        x_data.append(j + 1)
-                        y_data.append(gray_value)
-
-            # 如果点数超过max_points，进行降采样
-            if len(x_data) > max_points:
-                indices = np.linspace(0, len(x_data) - 1, max_points, dtype=int)
-                x_data = [x_data[i] for i in indices]
-                y_data = [y_data[i] for i in indices]
-
-            # 如果是最后一行且只有一个图，则占据整行
-            if plot_index == num_plots and num_plots % 2 != 0:
-                ax = plt.subplot(rows, 1, rows)
-            else:
-                ax = plt.subplot(rows, cols, plot_index)
-            
-            ax.plot(
-                x_data, y_data, marker="", linewidth=line_width, label=name, color=color
-            )
-            ax.set_title(f"{name} (Points: {max_points})")
-            ax.set_xlabel("Pixel Index")
-            ax.set_ylabel("Gray Value")
-            plot_index += 1
 
     plt.tight_layout()
     canvas.draw()
@@ -278,12 +238,10 @@ def set_max_points():
     )
     if new_max_points:
         MAX_POINTS = new_max_points
-        # messagebox.showinfo("设置成功", f"最大点数已设置为 {MAX_POINTS}")
         set_max_points_num_button.config(text=f"Set Max Points ({MAX_POINTS})")
 
-
 def select_image():
-    global img, gray_img, pixel_data_with_coordinates, mouse_coordinates, rectangles, lines, rect_start, rect_end, line_start, current_color_index
+    global img, gray_img, pixel_data_with_coordinates, mouse_coordinates, rectangles, lines, rect_start, rect_end, line_start
     filename = filedialog.askopenfilename(
         title="Select image file",
         filetypes=(("Image files", "*.jpg *.jpeg *.png *.bmp"), ("All files", "*.*")),
@@ -303,7 +261,6 @@ def select_image():
     rect_start = None
     rect_end = None
     line_start = None
-    current_color_index = 0
 
     save_button.config(state=tk.NORMAL)
     export_button.config(state=tk.NORMAL)
@@ -312,14 +269,12 @@ def select_image():
     cv2.namedWindow("Gray Image", cv2.WINDOW_NORMAL)
     cv2.setMouseCallback("Gray Image", mouse_callback)
 
-
 def export_data_to_excel():
     if img is None:
         messagebox.showerror("Error", "Please select an image first.")
         return
 
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    # Ask user to select the location and file name to save the Excel file
     filename = filedialog.asksaveasfilename(
         defaultextension=".xlsx",
         title="Save Data as Excel File",
@@ -328,12 +283,10 @@ def export_data_to_excel():
     )
 
     if not filename:
-        return  # User canceled the save dialog
+        return
 
-    # Create an Excel file with pandas and openpyxl
     with pd.ExcelWriter(filename, engine="openpyxl") as writer:
-        # Access the XlsxWriter workbook and worksheet objects
-        for idx, (start, end, color, name, max_points) in enumerate(rectangles):
+        for idx, (start, end, name, max_points) in enumerate(rectangles):
             x1, y1 = start
             x2, y2 = end
             x1, x2 = sorted(
@@ -344,40 +297,31 @@ def export_data_to_excel():
             )
             rect_pixels = gray_img[y1:y2, x1:x2].flatten()
 
-            # 如果像素点数量超过max_points，进行降采样
             if len(rect_pixels) > max_points:
                 indices = np.linspace(0, len(rect_pixels) - 1, max_points, dtype=int)
                 rect_pixels = rect_pixels[indices]
 
             data = []
             for i, gray_value in enumerate(rect_pixels):
-                x_coord = x1 + (
-                    i % (x2 - x1)
-                )  # Calculate x coordinate within the rectangle
-                y_coord = y1 + (
-                    i // (x2 - x1)
-                )  # Calculate y coordinate within the rectangle
+                x_coord = x1 + (i % (x2 - x1))
+                y_coord = y1 + (i // (x2 - x1))
                 data.append([i + 1, gray_value, x_coord, y_coord])
 
             df = pd.DataFrame(data, columns=["Index", "Gray", "X", "Y"])
             sheet_name = f"Chart_{idx + 1}"
 
-            # Write the DataFrame to a new sheet
             df.to_excel(writer, sheet_name=sheet_name, index=False)
 
-    # Load the workbook and add charts
     workbook = load_workbook(filename)
     for idx, sheet_name in enumerate(workbook.sheetnames):
         worksheet = workbook[sheet_name]
 
-        # Create a LineChart object
         chart = LineChart()
         chart.title = f"Gray Value vs Index - {sheet_name}"
         chart.style = 13
         chart.x_axis.title = "Index"
         chart.y_axis.title = "Gray Value"
 
-        # Select the data range
         data = Reference(
             worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1
         )
@@ -386,13 +330,10 @@ def export_data_to_excel():
         chart.add_data(data, titles_from_data=True)
         chart.set_categories(categories)
 
-        # Add the chart to the worksheet
         worksheet.add_chart(chart, "F2")
 
-    # Save the workbook
     workbook.save(filename)
     messagebox.showinfo("Success", "Data exported and chart added successfully!")
-
 
 select_button = tk.Button(root, text="Select Image", command=select_image)
 select_button.grid(row=0, column=0, sticky="ew")
