@@ -19,6 +19,15 @@ def show_loading_screen():
     loading_window.title("")
     loading_window.geometry("300x100")
     loading_window.resizable(False, False)
+    # Disable window minimization
+    loading_window.attributes('-toolwindow', 1)
+    
+    # Disable window closing
+    loading_window.protocol("WM_DELETE_WINDOW", lambda: None)
+    
+    # Remove the close button
+    loading_window.overrideredirect(True)
+    
     # Center the loading window on the screen
     screen_width = loading_window.winfo_screenwidth()
     screen_height = loading_window.winfo_screenheight()
