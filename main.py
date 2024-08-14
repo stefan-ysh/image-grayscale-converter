@@ -56,7 +56,7 @@ show_loading_screen()  # Show loading screen
 
 root.deiconify()  # Show the main window after loading
 root.title("Image Grayscale Chart Generator")
-# set the window icon
+# todo set the window icon
 # root.iconbitmap("logo.ico")
 pixel_data_with_coordinates = []
 rectangles = []
