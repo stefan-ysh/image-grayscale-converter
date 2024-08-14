@@ -180,21 +180,18 @@ def is_point_near_corner(x, y, start, end, threshold=10):
 
 
 def get_resize_direction(x, y, start, end, threshold=10):
-    top_left = abs(x - start[0]) < threshold and abs(y - start[1]) < threshold
-    top_right = abs(x - end[0]) < threshold and abs(y - start[1]) < threshold
-    bottom_left = abs(x - start[0]) < threshold and abs(y - end[1]) < threshold
-    bottom_right = abs(x - end[0]) < threshold and abs(y - end[1]) < threshold
-
-    if top_left:
-        return "top_left"
-    elif top_right:
-        return "top_right"
-    elif bottom_left:
-        return "bottom_left"
-    elif bottom_right:
-        return "bottom_right"
-    else:
-        return None
+    corners = {
+        "top_left": (start[0], start[1]),
+        "top_right": (end[0], start[1]),
+        "bottom_left": (start[0], end[1]),
+        "bottom_right": (end[0], end[1])
+    }
+    
+    for direction, (cx, cy) in corners.items():
+        if abs(x - cx) < threshold and abs(y - cy) < threshold:
+            return direction
+    
+    return None
 
 
 def resize_rectangle(start, end, x, y, direction):
