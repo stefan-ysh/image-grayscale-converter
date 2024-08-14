@@ -1,11 +1,8 @@
 import cv2
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, simpledialog
 import matplotlib.pyplot as plt
 from openpyxl import load_workbook
-
-# from openpyxl.utils.dataframe import dataframe_to_rows
-# from openpyxl.drawing.image import Image
 from openpyxl.chart import LineChart, Reference
 import pandas as pd
 from datetime import datetime
@@ -13,6 +10,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import colorchooser
 from tkinter import messagebox
 from image_processor import ImageProcessor
+import numpy as np
 
 root = tk.Tk()
 root.title("Image Uploader")
@@ -39,6 +37,7 @@ current_color_index = 0
 
 mode = "rectangle"
 
+MAX_POINTS = 1000  # 设置初始最大点数
 
 def hex_to_bgr(hex_color):
     hex_color = hex_color.lstrip("#")
@@ -68,6 +67,7 @@ def mouse_callback(event, x, y, flags, param):
                         rect_end,
                         line_colors[current_color_index],
                         rectangle_name,
+                        MAX_POINTS,  # 添加当前的MAX_POINTS值
                     )
                 )
                 current_color_index = (current_color_index + 1) % len(line_colors)
@@ -84,7 +84,7 @@ def update_display_image():
     display_img = gray_img.copy()
 
     if mode == "rectangle":
-        for start, end, color, name in rectangles:
+        for start, end, color, name, _ in rectangles:
             bgr_color = hex_to_bgr(color)
             cv2.rectangle(display_img, start, end, bgr_color, rect_thickness)
             text_position = (start[0], start[1] - 10)
@@ -113,7 +113,7 @@ def update_plot_from_rectangle():
     cols = 2
     rows = (num_plots + 1) // cols
 
-    for idx, (start, end, color, name) in enumerate(rectangles):
+    for idx, (start, end, color, name, max_points) in enumerate(rectangles):
         x1, y1 = start
         x2, y2 = end
         x1, x2 = sorted(
@@ -124,13 +124,19 @@ def update_plot_from_rectangle():
         )
 
         rect_pixels = gray_img[y1:y2, x1:x2].flatten()
+
+        # 如果像素点数量超过max_points，进行降采样
+        if len(rect_pixels) > max_points:
+            indices = np.linspace(0, len(rect_pixels) - 1, max_points, dtype=int)
+            rect_pixels = rect_pixels[indices]
+
         rect_data = [(i + 1, gray_value) for i, gray_value in enumerate(rect_pixels)]
 
         ax = plt.subplot(rows, cols, idx + 1)
         x_data = [i for i, _ in rect_data]
         y_data = [gray_value for _, gray_value in rect_data]
         ax.plot(x_data, y_data, marker="", linewidth=line_width, color=color)
-        ax.set_title(name)
+        ax.set_title(f"{name} (Points: {max_points})")
         ax.set_xlabel("Pixel Index")
         ax.set_ylabel("Gray Value")
 
@@ -152,6 +158,13 @@ def update_plot():
                 gray_value = gray_img[y, x]
                 x_data.append(i + 1)
                 y_data.append(gray_value)
+
+        # 如果点数超过MAX_POINTS，进行降采样
+        if len(x_data) > MAX_POINTS:
+            indices = np.linspace(0, len(x_data) - 1, MAX_POINTS, dtype=int)
+            x_data = [x_data[i] for i in indices]
+            y_data = [y_data[i] for i in indices]
+
         ax = plt.subplot(rows, cols, 1)
         ax.plot(
             x_data,
@@ -161,7 +174,7 @@ def update_plot():
             label="Mouse Path",
             color="blue",
         )
-        ax.set_title("Mouse Path")
+        ax.set_title(f"Mouse Path (Points: {MAX_POINTS})")
         ax.set_xlabel("Pixel Index")
         ax.set_ylabel("Gray Value")
 
@@ -179,15 +192,22 @@ def update_plot():
                     gray_value = gray_img[y, x]
                     x_data.append(i + 1)
                     y_data.append(gray_value)
+
+            # 如果点数超过MAX_POINTS，进行降采样
+            if len(x_data) > MAX_POINTS:
+                indices = np.linspace(0, len(x_data) - 1, MAX_POINTS, dtype=int)
+                x_data = [x_data[i] for i in indices]
+                y_data = [y_data[i] for i in indices]
+
             ax = plt.subplot(rows, cols, idx + 2 if mouse_coordinates else idx + 1)
             ax.plot(
                 x_data, y_data, marker="", linewidth=line_width, label=name, color=color
             )
-            ax.set_title(name)
+            ax.set_title(f"{name} (Points: {MAX_POINTS})")
             ax.set_xlabel("Pixel Index")
             ax.set_ylabel("Gray Value")
 
-    for idx, (start, end, color, name) in enumerate(rectangles):
+    for idx, (start, end, color, name, max_points) in enumerate(rectangles):
         x_data = []
         y_data = []
         if start and end:
@@ -206,6 +226,13 @@ def update_plot():
                         gray_value = gray_img[y, x]
                         x_data.append(j + 1)
                         y_data.append(gray_value)
+
+            # 如果点数超过max_points，进行降采样
+            if len(x_data) > max_points:
+                indices = np.linspace(0, len(x_data) - 1, max_points, dtype=int)
+                x_data = [x_data[i] for i in indices]
+                y_data = [y_data[i] for i in indices]
+
             ax = plt.subplot(
                 rows,
                 cols,
@@ -214,20 +241,31 @@ def update_plot():
             ax.plot(
                 x_data, y_data, marker="", linewidth=line_width, label=name, color=color
             )
-            ax.set_title(name)
+            ax.set_title(f"{name} (Points: {max_points})")
             ax.set_xlabel("Pixel Index")
             ax.set_ylabel("Gray Value")
 
     plt.tight_layout()
     canvas.draw()
 
-
-def show_color_chooser():
-    color = colorchooser.askcolor(title="Select a color")
-    if color[1]:
-        global line_colors
-        line_colors = [color[1]]  # 仅支持选择单一颜色用于折线图
-        update_plot()
+def set_max_points():
+    global MAX_POINTS
+    new_max_points = simpledialog.askinteger(
+        "设置最大点数",
+        "请输入新的最大点数（建议范围：100-10000）：\n\n"
+        "说明：\n"
+        "1. 较小的值会减少数据量，加快处理速度，但可能丢失细节。\n"
+        "2. 较大的值会保留更多细节，但可能会降低性能。\n"
+        "3. 对于高分辨率图像或大区域，可能需要更大的值。\n"
+        "4. 更改后将应用于新生成的图表。",
+        initialvalue=MAX_POINTS,
+        minvalue=10,
+        maxvalue=100000,
+    )
+    if new_max_points:
+        MAX_POINTS = new_max_points
+        messagebox.showinfo("设置成功", f"最大点数已设置为 {MAX_POINTS}")
+        set_max_points_num_button.config(text=f"Set Max Points ({MAX_POINTS})")
 
 
 def select_image():
@@ -278,10 +316,10 @@ def export_data_to_excel():
     if not filename:
         return  # User canceled the save dialog
 
-        # Create an Excel file with pandas and openpyxl
+    # Create an Excel file with pandas and openpyxl
     with pd.ExcelWriter(filename, engine="openpyxl") as writer:
         # Access the XlsxWriter workbook and worksheet objects
-        for idx, (start, end, color, name) in enumerate(rectangles):
+        for idx, (start, end, color, name, max_points) in enumerate(rectangles):
             x1, y1 = start
             x2, y2 = end
             x1, x2 = sorted(
@@ -291,6 +329,12 @@ def export_data_to_excel():
                 [max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))]
             )
             rect_pixels = gray_img[y1:y2, x1:x2].flatten()
+
+            # 如果像素点数量超过max_points，进行降采样
+            if len(rect_pixels) > max_points:
+                indices = np.linspace(0, len(rect_pixels) - 1, max_points, dtype=int)
+                rect_pixels = rect_pixels[indices]
+
             data = []
             for i, gray_value in enumerate(rect_pixels):
                 x_coord = x1 + (
@@ -307,7 +351,7 @@ def export_data_to_excel():
             # Write the DataFrame to a new sheet
             df.to_excel(writer, sheet_name=sheet_name, index=False)
 
-        # Load the workbook and add charts
+    # Load the workbook and add charts
     workbook = load_workbook(filename)
     for idx, sheet_name in enumerate(workbook.sheetnames):
         worksheet = workbook[sheet_name]
@@ -339,10 +383,10 @@ def export_data_to_excel():
 select_button = tk.Button(root, text="Select Image", command=select_image)
 select_button.grid(row=0, column=0, sticky="ew")
 
-choose_color_button = tk.Button(
-    root, text=f"{line_colors[0]}", command=show_color_chooser
+set_max_points_num_button = tk.Button(
+    root, text=f"Set Max Points ({MAX_POINTS})", command=set_max_points
 )
-choose_color_button.grid(row=0, column=1, sticky="ew")
+set_max_points_num_button.grid(row=0, column=1, sticky="ew")
 
 image_processor = ImageProcessor(img, plt)
 
