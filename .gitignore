@@ -5,7 +5,7 @@
 *.class
 *.lock
 *.log
-venv/
+.venv/
 *.pyc
 *.pyo
 *.pyd
