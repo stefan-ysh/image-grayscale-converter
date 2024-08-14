@@ -16,7 +16,7 @@ import time
 # show loading screen when the program is launching
 def show_loading_screen():
     loading_window = tk.Toplevel()
-    loading_window.title("Loading")
+    loading_window.title("")
     loading_window.geometry("300x100")
     loading_window.resizable(False, False)
     # Center the loading window on the screen
@@ -25,7 +25,7 @@ def show_loading_screen():
     x = (screen_width - 300) // 2
     y = (screen_height - 100) // 2
     loading_window.geometry(f"300x100+{x}+{y}")
-    loading_label = tk.Label(loading_window, text="Loading...", font=("Arial", 16))
+    loading_label = tk.Label(loading_window, text="launching...", font=("Arial", 16))
     loading_label.pack(pady=20)
     
     progress_bar = tk.Canvas(loading_window, width=200, height=20)
