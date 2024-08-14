@@ -44,6 +44,8 @@ resizing = None
 min_rect_size = 20
 circle_radius = 5  # 圆圈半径
 highlight_color = (0, 255, 0)  # 高亮颜色（绿色）
+MIN_RECT_WIDTH = 20  # 最小矩形宽度
+MIN_RECT_HEIGHT = 20  # 最小矩形高度
 
 
 def hex_to_bgr(hex_color):
@@ -109,17 +111,23 @@ def mouse_callback(event, x, y, flags, param):
                 update_plot()  # 在鼠标抬起时更新plot
             elif rect_start and rect_end:
                 if rect_start != rect_end:
-                    rectangle_name = f"Chart {len(rectangles) + 1}"
-                    rectangles.append(
-                        (
-                            rect_start,
-                            rect_end,
-                            rectangle_name,
-                            MAX_POINTS,
+                    # 确保矩形宽高不小于最小值
+                    width = abs(rect_end[0] - rect_start[0])
+                    height = abs(rect_end[1] - rect_start[1])
+                    if width >= MIN_RECT_WIDTH and height >= MIN_RECT_HEIGHT:
+                        rectangle_name = f"Chart {len(rectangles) + 1}"
+                        rectangles.append(
+                            (
+                                rect_start,
+                                rect_end,
+                                rectangle_name,
+                                MAX_POINTS,
+                            )
                         )
-                    )
-                    update_display_image()
-                    update_plot()
+                        update_display_image()
+                        update_plot()
+                    else:
+                        messagebox.showwarning("Warning", f"Rectangle size too small. Minimum size is {MIN_RECT_WIDTH}x{MIN_RECT_HEIGHT} pixels.")
                 rect_start = None
                 rect_end = None
         elif event == cv2.EVENT_RBUTTONDOWN:
@@ -190,14 +198,35 @@ def get_resize_direction(x, y, start, end, threshold=10):
 
 
 def resize_rectangle(start, end, x, y, direction):
+    new_start, new_end = start, end
     if direction == "top_left":
-        return (x, y), (end[0], end[1])
+        new_start = (x, y)
     elif direction == "top_right":
-        return (start[0], y), (x, end[1])
+        new_start = (start[0], y)
+        new_end = (x, end[1])
     elif direction == "bottom_left":
-        return (x, start[1]), (end[0], y)
+        new_start = (x, start[1])
+        new_end = (end[0], y)
     elif direction == "bottom_right":
-        return start, (x, y)
+        new_end = (x, y)
+    
+    # 确保新的矩形宽高不小于最小值
+    width = abs(new_end[0] - new_start[0])
+    height = abs(new_end[1] - new_start[1])
+    
+    if width < MIN_RECT_WIDTH:
+        if direction in ["top_left", "bottom_left"]:
+            new_start = (new_end[0] - MIN_RECT_WIDTH, new_start[1])
+        else:
+            new_end = (new_start[0] + MIN_RECT_WIDTH, new_end[1])
+    
+    if height < MIN_RECT_HEIGHT:
+        if direction in ["top_left", "top_right"]:
+            new_start = (new_start[0], new_end[1] - MIN_RECT_HEIGHT)
+        else:
+            new_end = (new_end[0], new_start[1] + MIN_RECT_HEIGHT)
+    
+    return new_start, new_end
 
 
 def update_display_image(highlight_corner=None):
