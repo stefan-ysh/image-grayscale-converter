@@ -290,6 +290,7 @@ def select_image():
 
     save_button.config(state=tk.NORMAL)
     export_button.config(state=tk.NORMAL)
+    save_gray_image_button.config(state=tk.NORMAL)
     update_plot()
 
     cv2.namedWindow("Gray Image", cv2.WINDOW_NORMAL)
@@ -381,6 +382,42 @@ save_button.grid(row=0, column=2, sticky="ew")
 export_button = tk.Button(
     root, text="Export Data to Excel", command=export_data_to_excel
 )
+
+def save_gray_img():
+    global gray_img, rectangles
+    if gray_img is None:
+        messagebox.showerror("Error", "Please select an image first.")
+        return
+    
+    # Get current time for filename
+    current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    
+    # Open save file dialog
+    filename = filedialog.asksaveasfilename(
+        defaultextension=".png",
+        title="Save Gray Image",
+        initialfile=f"gray_image_{current_time}.png",
+        filetypes=[("PNG files", "*.png"), ("All files", "*.*")]
+    )
+    
+    if filename:
+        # Create a copy of the gray image to draw on
+        img_with_rectangles = gray_img.copy()
+        
+        # Draw rectangles on the image
+        for rect in rectangles:
+            cv2.rectangle(img_with_rectangles, rect[0], rect[1], (0, 255, 0), 2)
+        
+        # Save the image with rectangles
+        cv2.imwrite(filename, img_with_rectangles)
+        messagebox.showinfo("Success", "Gray image with rectangles saved successfully!")
+    
+save_gray_image_button = tk.Button(
+    root, text="Save Gray Image", command=save_gray_img
+)
+
+    
+save_gray_image_button.grid(row=0, column=4, sticky="ew")
 export_button.grid(row=0, column=3, sticky="ew")
 
 
