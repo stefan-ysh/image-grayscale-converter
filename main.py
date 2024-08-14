@@ -207,6 +207,7 @@ def mouse_callback(event, x, y, flags, param):
                     return
 
 
+# show the context menu of the rectangle
 def show_context_menu(x, y, rect_index):
     context_menu = Menu(root, tearoff=0)
     context_menu.add_command(
