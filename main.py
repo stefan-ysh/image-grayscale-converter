@@ -79,8 +79,10 @@ def mouse_callback(event, x, y, flags, param):
                 dy = y - drag_start[1]
                 for i, (start, end, name, max_points) in enumerate(rectangles):
                     if is_point_in_rect(drag_start[0], drag_start[1], start, end):
-                        new_start = (start[0] + dx, start[1] + dy)
-                        new_end = (end[0] + dx, end[1] + dy)
+                        new_start = (max(0, min(start[0] + dx, gray_img.shape[1] - (end[0] - start[0]))),
+                                     max(0, min(start[1] + dy, gray_img.shape[0] - (end[1] - start[1]))))
+                        new_end = (new_start[0] + (end[0] - start[0]),
+                                   new_start[1] + (end[1] - start[1]))
                         rectangles[i] = (new_start, new_end, name, max_points)
                         break
                 drag_start = (x, y)
@@ -91,7 +93,11 @@ def mouse_callback(event, x, y, flags, param):
                         new_start, new_end = resize_rectangle(
                             start, end, x, y, resizing
                         )
-                        rectangles[i] = (new_start, new_end, name, max_points)
+                        # 确保新的矩形尺寸不小于最小值
+                        width = abs(new_end[0] - new_start[0])
+                        height = abs(new_end[1] - new_start[1])
+                        if width >= MIN_RECT_WIDTH and height >= MIN_RECT_HEIGHT:
+                            rectangles[i] = (new_start, new_end, name, max_points)
                         break
                 drag_start = (x, y)
                 update_display_image()
@@ -225,31 +231,16 @@ def get_resize_direction(x, y, start, end, threshold=10):
 def resize_rectangle(start, end, x, y, direction):
     new_start, new_end = start, end
     if direction == "top_left":
-        new_start = (x, y)
+        new_start = (max(0, min(x, end[0] - MIN_RECT_WIDTH)), max(0, min(y, end[1] - MIN_RECT_HEIGHT)))
     elif direction == "top_right":
-        new_start = (start[0], y)
-        new_end = (x, end[1])
+        new_start = (start[0], max(0, min(y, end[1] - MIN_RECT_HEIGHT)))
+        new_end = (max(start[0] + MIN_RECT_WIDTH, min(x, gray_img.shape[1] - 1)), end[1])
     elif direction == "bottom_left":
-        new_start = (x, start[1])
-        new_end = (end[0], y)
+        new_start = (max(0, min(x, end[0] - MIN_RECT_WIDTH)), start[1])
+        new_end = (end[0], max(start[1] + MIN_RECT_HEIGHT, min(y, gray_img.shape[0] - 1)))
     elif direction == "bottom_right":
-        new_end = (x, y)
-    
-    # 确保新的矩形宽高不小于最小值
-    width = abs(new_end[0] - new_start[0])
-    height = abs(new_end[1] - new_start[1])
-    
-    if width < MIN_RECT_WIDTH:
-        if direction in ["top_left", "bottom_left"]:
-            new_start = (new_end[0] - MIN_RECT_WIDTH, new_start[1])
-        else:
-            new_end = (new_start[0] + MIN_RECT_WIDTH, new_end[1])
-    
-    if height < MIN_RECT_HEIGHT:
-        if direction in ["top_left", "top_right"]:
-            new_start = (new_start[0], new_end[1] - MIN_RECT_HEIGHT)
-        else:
-            new_end = (new_end[0], new_start[1] + MIN_RECT_HEIGHT)
+        new_end = (max(start[0] + MIN_RECT_WIDTH, min(x, gray_img.shape[1] - 1)),
+                   max(start[1] + MIN_RECT_HEIGHT, min(y, gray_img.shape[0] - 1)))
     
     return new_start, new_end
 
