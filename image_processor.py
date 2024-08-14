@@ -20,8 +20,7 @@ class ImageProcessor:
             defaultextension=".png",
             title="select path to save image",
             initialfile=f"gray_values_plot_{current_time}.png",
-            filetypes=[("PNG files", "*.png"),
-                       ("All files", "*.*")]
+            filetypes=[("PNG files", "*.png"), ("All files", "*.*")],
         )
         if filename:
             # 保存折线图到指定路径

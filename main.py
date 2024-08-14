@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import filedialog
 import matplotlib.pyplot as plt
 from openpyxl import load_workbook
+
 # from openpyxl.utils.dataframe import dataframe_to_rows
 # from openpyxl.drawing.image import Image
 from openpyxl.chart import LineChart, Reference
@@ -24,7 +25,7 @@ mouse_coordinates = []
 img = None
 gray_img = None
 
-line_colors = ['#FF0000', '#FFFF00']  # 红色和黄色
+line_colors = ["#FF0000", "#FFFF00"]  # 红色和黄色
 line_width = 1
 mouse_pressed = False
 
@@ -36,20 +37,20 @@ line_start = None
 line_thickness = 1
 current_color_index = 0
 
-mode = 'rectangle'
+mode = "rectangle"
 
 
 def hex_to_bgr(hex_color):
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (4, 2, 0))  # BGR 顺序
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i : i + 2], 16) for i in (4, 2, 0))  # BGR 顺序
 
 
 def mouse_callback(event, x, y, flags, param):
     global rect_start, rect_end, mouse_pressed, mouse_coordinates, rectangles, line_start, lines, current_color_index
 
-    if mode == 'mouse_hover':
-        print('do nothing')
-    elif mode == 'rectangle':
+    if mode == "mouse_hover":
+        print("do nothing")
+    elif mode == "rectangle":
         if event == cv2.EVENT_LBUTTONDOWN:
             rect_start = (x, y)
             rect_end = None
@@ -60,8 +61,15 @@ def mouse_callback(event, x, y, flags, param):
         elif event == cv2.EVENT_LBUTTONUP:
             rect_end = (x, y)
             if rect_start != rect_end:
-                rectangle_name = f'Rectangle {len(rectangles) + 1}'
-                rectangles.append((rect_start, rect_end, line_colors[current_color_index], rectangle_name))
+                rectangle_name = f"Rectangle {len(rectangles) + 1}"
+                rectangles.append(
+                    (
+                        rect_start,
+                        rect_end,
+                        line_colors[current_color_index],
+                        rectangle_name,
+                    )
+                )
                 current_color_index = (current_color_index + 1) % len(line_colors)
                 update_display_image()
                 update_plot_from_rectangle()
@@ -75,12 +83,21 @@ def update_display_image():
 
     display_img = gray_img.copy()
 
-    if mode == 'rectangle':
+    if mode == "rectangle":
         for start, end, color, name in rectangles:
             bgr_color = hex_to_bgr(color)
             cv2.rectangle(display_img, start, end, bgr_color, rect_thickness)
             text_position = (start[0], start[1] - 10)
-            cv2.putText(display_img, name, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, bgr_color, 1, cv2.LINE_AA)
+            cv2.putText(
+                display_img,
+                name,
+                text_position,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                bgr_color,
+                1,
+                cv2.LINE_AA,
+            )
 
     cv2.imshow("Gray Image", display_img)
 
@@ -99,8 +116,12 @@ def update_plot_from_rectangle():
     for idx, (start, end, color, name) in enumerate(rectangles):
         x1, y1 = start
         x2, y2 = end
-        x1, x2 = sorted([max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))])
-        y1, y2 = sorted([max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))])
+        x1, x2 = sorted(
+            [max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))]
+        )
+        y1, y2 = sorted(
+            [max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))]
+        )
 
         rect_pixels = gray_img[y1:y2, x1:x2].flatten()
         rect_data = [(i + 1, gray_value) for i, gray_value in enumerate(rect_pixels)]
@@ -108,7 +129,7 @@ def update_plot_from_rectangle():
         ax = plt.subplot(rows, cols, idx + 1)
         x_data = [i for i, _ in rect_data]
         y_data = [gray_value for _, gray_value in rect_data]
-        ax.plot(x_data, y_data, marker='', linewidth=line_width, color=color)
+        ax.plot(x_data, y_data, marker="", linewidth=line_width, color=color)
         ax.set_title(name)
         ax.set_xlabel("Pixel Index")
         ax.set_ylabel("Gray Value")
@@ -132,8 +153,15 @@ def update_plot():
                 x_data.append(i + 1)
                 y_data.append(gray_value)
         ax = plt.subplot(rows, cols, 1)
-        ax.plot(x_data, y_data, marker='', linewidth=line_width, label='Mouse Path', color='blue')
-        ax.set_title('Mouse Path')
+        ax.plot(
+            x_data,
+            y_data,
+            marker="",
+            linewidth=line_width,
+            label="Mouse Path",
+            color="blue",
+        )
+        ax.set_title("Mouse Path")
         ax.set_xlabel("Pixel Index")
         ax.set_ylabel("Gray Value")
 
@@ -152,7 +180,9 @@ def update_plot():
                     x_data.append(i + 1)
                     y_data.append(gray_value)
             ax = plt.subplot(rows, cols, idx + 2 if mouse_coordinates else idx + 1)
-            ax.plot(x_data, y_data, marker='', linewidth=line_width, label=name, color=color)
+            ax.plot(
+                x_data, y_data, marker="", linewidth=line_width, label=name, color=color
+            )
             ax.set_title(name)
             ax.set_xlabel("Pixel Index")
             ax.set_ylabel("Gray Value")
@@ -176,8 +206,14 @@ def update_plot():
                         gray_value = gray_img[y, x]
                         x_data.append(j + 1)
                         y_data.append(gray_value)
-            ax = plt.subplot(rows, cols, len(lines) + idx + 2 if mouse_coordinates else len(lines) + idx + 1)
-            ax.plot(x_data, y_data, marker='', linewidth=line_width, label=name, color=color)
+            ax = plt.subplot(
+                rows,
+                cols,
+                len(lines) + idx + 2 if mouse_coordinates else len(lines) + idx + 1,
+            )
+            ax.plot(
+                x_data, y_data, marker="", linewidth=line_width, label=name, color=color
+            )
             ax.set_title(name)
             ax.set_xlabel("Pixel Index")
             ax.set_ylabel("Gray Value")
@@ -198,7 +234,7 @@ def select_image():
     global img, gray_img, pixel_data_with_coordinates, mouse_coordinates, rectangles, lines, rect_start, rect_end, line_start, current_color_index
     filename = filedialog.askopenfilename(
         title="Select image file",
-        filetypes=(("Image files", "*.jpg *.jpeg *.png *.bmp"), ("All files", "*.*"))
+        filetypes=(("Image files", "*.jpg *.jpeg *.png *.bmp"), ("All files", "*.*")),
     )
     if not filename:
         return
@@ -236,29 +272,37 @@ def export_data_to_excel():
         defaultextension=".xlsx",
         title="Save Data as Excel File",
         initialfile=f"pixel_data_{current_time}.xlsx",
-        filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+        filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
     )
 
     if not filename:
         return  # User canceled the save dialog
 
         # Create an Excel file with pandas and openpyxl
-    with pd.ExcelWriter(filename, engine='openpyxl') as writer:
+    with pd.ExcelWriter(filename, engine="openpyxl") as writer:
         # Access the XlsxWriter workbook and worksheet objects
         for idx, (start, end, color, name) in enumerate(rectangles):
             x1, y1 = start
             x2, y2 = end
-            x1, x2 = sorted([max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))])
-            y1, y2 = sorted([max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))])
+            x1, x2 = sorted(
+                [max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))]
+            )
+            y1, y2 = sorted(
+                [max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))]
+            )
             rect_pixels = gray_img[y1:y2, x1:x2].flatten()
             data = []
             for i, gray_value in enumerate(rect_pixels):
-                x_coord = x1 + (i % (x2 - x1))  # Calculate x coordinate within the rectangle
-                y_coord = y1 + (i // (x2 - x1))  # Calculate y coordinate within the rectangle
+                x_coord = x1 + (
+                    i % (x2 - x1)
+                )  # Calculate x coordinate within the rectangle
+                y_coord = y1 + (
+                    i // (x2 - x1)
+                )  # Calculate y coordinate within the rectangle
                 data.append([i + 1, gray_value, x_coord, y_coord])
 
-            df = pd.DataFrame(data, columns=['Index', 'Gray', 'X', 'Y'])
-            sheet_name = f'Chart_{idx + 1}'
+            df = pd.DataFrame(data, columns=["Index", "Gray", "X", "Y"])
+            sheet_name = f"Chart_{idx + 1}"
 
             # Write the DataFrame to a new sheet
             df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -270,20 +314,22 @@ def export_data_to_excel():
 
         # Create a LineChart object
         chart = LineChart()
-        chart.title = f'Gray Value vs Index - {sheet_name}'
+        chart.title = f"Gray Value vs Index - {sheet_name}"
         chart.style = 13
-        chart.x_axis.title = 'Index'
-        chart.y_axis.title = 'Gray Value'
+        chart.x_axis.title = "Index"
+        chart.y_axis.title = "Gray Value"
 
         # Select the data range
-        data = Reference(worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1)
+        data = Reference(
+            worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1
+        )
         categories = Reference(worksheet, min_col=1, min_row=2, max_row=len(df) + 1)
 
         chart.add_data(data, titles_from_data=True)
         chart.set_categories(categories)
 
         # Add the chart to the worksheet
-        worksheet.add_chart(chart, 'F2')
+        worksheet.add_chart(chart, "F2")
 
     # Save the workbook
     workbook.save(filename)
@@ -293,15 +339,23 @@ def export_data_to_excel():
 select_button = tk.Button(root, text="Select Image", command=select_image)
 select_button.grid(row=0, column=0, sticky="ew")
 
-choose_color_button = tk.Button(root, text=f"{line_colors[0]}", command=show_color_chooser)
+choose_color_button = tk.Button(
+    root, text=f"{line_colors[0]}", command=show_color_chooser
+)
 choose_color_button.grid(row=0, column=1, sticky="ew")
 
 image_processor = ImageProcessor(img, plt)
 
-save_button = tk.Button(root, text="Save Plot Image", command=lambda: image_processor.save_plot_image(img, plt))
+save_button = tk.Button(
+    root,
+    text="Save Plot Image",
+    command=lambda: image_processor.save_plot_image(img, plt),
+)
 save_button.grid(row=0, column=2, sticky="ew")
 
-export_button = tk.Button(root, text="Export Data to Excel", command=export_data_to_excel)
+export_button = tk.Button(
+    root, text="Export Data to Excel", command=export_data_to_excel
+)
 export_button.grid(row=0, column=3, sticky="ew")
 
 
