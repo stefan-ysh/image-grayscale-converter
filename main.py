@@ -1,6 +1,6 @@
 import cv2
 import tkinter as tk
-from tkinter import filedialog, simpledialog
+from tkinter import filedialog, simpledialog, Menu
 import matplotlib.pyplot as plt
 from openpyxl import load_workbook
 from openpyxl.chart import LineChart, Reference
@@ -41,7 +41,6 @@ MAX_POINTS = 1000  # 设置初始最大点数
 dragging = False
 drag_start = None
 resizing = None
-close_button_size = 20
 min_rect_size = 20
 
 def hex_to_bgr(hex_color):
@@ -57,12 +56,7 @@ def mouse_callback(event, x, y, flags, param):
     elif mode == "rectangle":
         if event == cv2.EVENT_LBUTTONDOWN:
             for i, (start, end, name, max_points) in enumerate(rectangles):
-                if is_point_in_close_button(x, y, start):
-                    rectangles.pop(i)
-                    update_display_image()
-                    update_plot()
-                    return
-                elif is_point_in_rect(x, y, start, end):
+                if is_point_in_rect(x, y, start, end):
                     dragging = True
                     drag_start = (x, y)
                     return
@@ -115,9 +109,21 @@ def mouse_callback(event, x, y, flags, param):
                     update_plot()
                 rect_start = None
                 rect_end = None
+        elif event == cv2.EVENT_RBUTTONDOWN:
+            for i, (start, end, name, max_points) in enumerate(rectangles):
+                if is_point_in_rect(x, y, start, end):
+                    show_context_menu(x, y, i)
+                    return
 
-def is_point_in_close_button(x, y, start):
-    return start[0] <= x <= start[0] + close_button_size and start[1] <= y <= start[1] + close_button_size
+def show_context_menu(x, y, rect_index):
+    context_menu = Menu(root, tearoff=0)
+    context_menu.add_command(label="Delete", command=lambda: delete_rectangle(rect_index))
+    context_menu.post(root.winfo_pointerx(), root.winfo_pointery())
+
+def delete_rectangle(rect_index):
+    rectangles.pop(rect_index)
+    update_display_image()
+    update_plot()
 
 def is_point_in_rect(x, y, start, end):
     return start[0] <= x <= end[0] and start[1] <= y <= end[1]
@@ -174,10 +180,6 @@ def update_display_image():
                 1,
                 cv2.LINE_AA,
             )
-            # 绘制关闭按钮
-            cv2.rectangle(display_img, start, (start[0] + close_button_size, start[1] + close_button_size), (0, 0, 255), 1)
-            cv2.line(display_img, start, (start[0] + close_button_size, start[1] + close_button_size), (0, 0, 255), 1)
-            cv2.line(display_img, (start[0] + close_button_size, start[1]), (start[0], start[1] + close_button_size), (0, 0, 255), 1)
 
         if rect_start and rect_end:
             cv2.rectangle(display_img, rect_start, rect_end, hex_to_bgr(line_color), rect_thickness)
