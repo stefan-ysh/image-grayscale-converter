@@ -296,7 +296,7 @@ def update_plot():
         plt.text(
             0.5,
             0.5,
-            "Please select the image and draw a rectangular area \n to generate a grayscale chart.",
+            "Please select an image \n to generate a grayscale chart",
             ha="center",
             va="center",
             fontsize=14,
@@ -591,6 +591,7 @@ def create_plot_canvas():
 
 save_button.config(state="disabled")
 export_button.config(state="disabled")
+save_gray_image_button.config(state="disabled")
 
 canvas = create_plot_canvas()
 update_plot()
