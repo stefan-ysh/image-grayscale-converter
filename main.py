@@ -42,6 +42,8 @@ dragging = False
 drag_start = None
 resizing = None
 min_rect_size = 20
+circle_radius = 5  # 圆圈半径
+highlight_color = (0, 255, 0)  # 高亮颜色（绿色）
 
 def hex_to_bgr(hex_color):
     hex_color = hex_color.lstrip("#")
@@ -78,22 +80,29 @@ def mouse_callback(event, x, y, flags, param):
                         break
                 drag_start = (x, y)
                 update_display_image()
-                update_plot()
             elif resizing is not None:
                 for i, (start, end, name, max_points) in enumerate(rectangles):
                     if is_point_near_corner(drag_start[0], drag_start[1], start, end):
                         new_start, new_end = resize_rectangle(start, end, x, y, resizing)
                         rectangles[i] = (new_start, new_end, name, max_points)
                         break
+                drag_start = (x, y)
                 update_display_image()
-                update_plot()
             elif rect_start:
                 rect_end = (x, y)
+                update_display_image()
+            else:
+                # 检查鼠标是否悬停在任何矩形的角上
+                for start, end, _, _ in rectangles:
+                    if is_point_near_corner(x, y, start, end):
+                        update_display_image(highlight_corner=(x, y))
+                        return
                 update_display_image()
         elif event == cv2.EVENT_LBUTTONUP:
             if dragging or resizing:
                 dragging = False
                 resizing = None
+                update_plot()  # 在鼠标抬起时更新plot
             elif rect_start and rect_end:
                 if rect_start != rect_end:
                     rectangle_name = f"Rectangle {len(rectangles) + 1}"
@@ -151,7 +160,7 @@ def get_resize_direction(x, y, start, end, threshold=10):
 
 def resize_rectangle(start, end, x, y, direction):
     if direction == "top_left":
-        return (x, y), end
+        return (x, y), (end[0], end[1])
     elif direction == "top_right":
         return (start[0], y), (x, end[1])
     elif direction == "bottom_left":
@@ -159,11 +168,11 @@ def resize_rectangle(start, end, x, y, direction):
     elif direction == "bottom_right":
         return start, (x, y)
 
-def update_display_image():
+def update_display_image(highlight_corner=None):
     if img is None or gray_img is None:
         return
 
-    display_img = gray_img.copy()
+    display_img = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2BGR)
 
     if mode == "rectangle":
         for start, end, name, _ in rectangles:
@@ -180,6 +189,14 @@ def update_display_image():
                 1,
                 cv2.LINE_AA,
             )
+            
+            # 在四个角上绘制小圆圈
+            corners = [start, (start[0], end[1]), end, (end[0], start[1])]
+            for corner in corners:
+                if highlight_corner and is_point_near_corner(highlight_corner[0], highlight_corner[1], corner, corner):
+                    cv2.circle(display_img, corner, circle_radius, highlight_color, -1)
+                else:
+                    cv2.circle(display_img, corner, circle_radius, bgr_color, -1)
 
         if rect_start and rect_end:
             cv2.rectangle(display_img, rect_start, rect_end, hex_to_bgr(line_color), rect_thickness)
