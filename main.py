@@ -45,9 +45,11 @@ min_rect_size = 20
 circle_radius = 5  # 圆圈半径
 highlight_color = (0, 255, 0)  # 高亮颜色（绿色）
 
+
 def hex_to_bgr(hex_color):
     hex_color = hex_color.lstrip("#")
     return tuple(int(hex_color[i : i + 2], 16) for i in (4, 2, 0))  # BGR 顺序
+
 
 def mouse_callback(event, x, y, flags, param):
     global rect_start, rect_end, mouse_pressed, mouse_coordinates, rectangles, line_start, lines
@@ -83,7 +85,9 @@ def mouse_callback(event, x, y, flags, param):
             elif resizing is not None:
                 for i, (start, end, name, max_points) in enumerate(rectangles):
                     if is_point_near_corner(drag_start[0], drag_start[1], start, end):
-                        new_start, new_end = resize_rectangle(start, end, x, y, resizing)
+                        new_start, new_end = resize_rectangle(
+                            start, end, x, y, resizing
+                        )
                         rectangles[i] = (new_start, new_end, name, max_points)
                         break
                 drag_start = (x, y)
@@ -124,22 +128,31 @@ def mouse_callback(event, x, y, flags, param):
                     show_context_menu(x, y, i)
                     return
 
+
 def show_context_menu(x, y, rect_index):
     context_menu = Menu(root, tearoff=0)
-    context_menu.add_command(label="Delete", command=lambda: delete_rectangle(rect_index))
+    context_menu.add_command(
+        label="Delete", command=lambda: delete_rectangle(rect_index)
+    )
     context_menu.post(root.winfo_pointerx(), root.winfo_pointery())
+
 
 def delete_rectangle(rect_index):
     rectangles.pop(rect_index)
     update_display_image()
     update_plot()
 
+
 def is_point_in_rect(x, y, start, end):
     return start[0] <= x <= end[0] and start[1] <= y <= end[1]
 
+
 def is_point_near_corner(x, y, start, end, threshold=10):
     corners = [start, (start[0], end[1]), end, (end[0], start[1])]
-    return any(abs(x - cx) < threshold and abs(y - cy) < threshold for cx, cy in corners)
+    return any(
+        abs(x - cx) < threshold and abs(y - cy) < threshold for cx, cy in corners
+    )
+
 
 def get_resize_direction(x, y, start, end, threshold=10):
     top_left = abs(x - start[0]) < threshold and abs(y - start[1]) < threshold
@@ -158,6 +171,7 @@ def get_resize_direction(x, y, start, end, threshold=10):
     else:
         return None
 
+
 def resize_rectangle(start, end, x, y, direction):
     if direction == "top_left":
         return (x, y), (end[0], end[1])
@@ -167,6 +181,7 @@ def resize_rectangle(start, end, x, y, direction):
         return (x, start[1]), (end[0], y)
     elif direction == "bottom_right":
         return start, (x, y)
+
 
 def update_display_image(highlight_corner=None):
     if img is None or gray_img is None:
@@ -189,27 +204,42 @@ def update_display_image(highlight_corner=None):
                 1,
                 cv2.LINE_AA,
             )
-            
+
             # 在四个角上绘制小圆圈
             corners = [start, (start[0], end[1]), end, (end[0], start[1])]
             for corner in corners:
-                if highlight_corner and is_point_near_corner(highlight_corner[0], highlight_corner[1], corner, corner):
+                if highlight_corner and is_point_near_corner(
+                    highlight_corner[0], highlight_corner[1], corner, corner
+                ):
                     cv2.circle(display_img, corner, circle_radius, highlight_color, -1)
                 else:
                     cv2.circle(display_img, corner, circle_radius, bgr_color, -1)
 
         if rect_start and rect_end:
-            cv2.rectangle(display_img, rect_start, rect_end, hex_to_bgr(line_color), rect_thickness)
+            cv2.rectangle(
+                display_img,
+                rect_start,
+                rect_end,
+                hex_to_bgr(line_color),
+                rect_thickness,
+            )
 
     cv2.imshow("Gray Image", display_img)
+
 
 def update_plot():
     plt.clf()
     if not rectangles:
         # 当没有图表时，显示提示信息
-        plt.text(0.5, 0.5, "Please select the image and draw a rectangular area \n to generate a grayscale chart.", 
-                 ha='center', va='center', fontsize=14)
-        plt.axis('off')
+        plt.text(
+            0.5,
+            0.5,
+            "Please select the image and draw a rectangular area \n to generate a grayscale chart.",
+            ha="center",
+            va="center",
+            fontsize=14,
+        )
+        plt.axis("off")
     else:
         num_plots = len(rectangles)
         cols = 2
@@ -218,8 +248,12 @@ def update_plot():
         for idx, (start, end, name, max_points) in enumerate(rectangles):
             x1, y1 = start
             x2, y2 = end
-            x1, x2 = sorted([max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))])
-            y1, y2 = sorted([max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))])
+            x1, x2 = sorted(
+                [max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))]
+            )
+            y1, y2 = sorted(
+                [max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))]
+            )
 
             rect_pixels = gray_img[y1:y2, x1:x2].flatten()
 
@@ -227,16 +261,18 @@ def update_plot():
                 indices = np.linspace(0, len(rect_pixels) - 1, max_points, dtype=int)
                 rect_pixels = rect_pixels[indices]
 
-            rect_data = [(i + 1, gray_value) for i, gray_value in enumerate(rect_pixels)]
+            rect_data = [
+                (i + 1, gray_value) for i, gray_value in enumerate(rect_pixels)
+            ]
 
             row = idx // cols
             col = idx % cols
-            
+
             if row == rows - 1 and num_plots % 2 != 0:
                 ax = plt.subplot(rows, 1, row + 1)
             else:
                 ax = plt.subplot(rows, cols, idx + 1)
-            
+
             x_data = [i for i, _ in rect_data]
             y_data = [gray_value for _, gray_value in rect_data]
             ax.plot(x_data, y_data, marker="", linewidth=line_width, color=line_color)
@@ -246,6 +282,7 @@ def update_plot():
 
     plt.tight_layout()
     canvas.draw()
+
 
 def set_max_points():
     global MAX_POINTS
@@ -264,6 +301,7 @@ def set_max_points():
     if new_max_points:
         MAX_POINTS = new_max_points
         set_max_points_num_button.config(text=f"Set Max Points ({MAX_POINTS})")
+
 
 def select_image():
     global img, gray_img, pixel_data_with_coordinates, mouse_coordinates, rectangles, lines, rect_start, rect_end, line_start
@@ -294,6 +332,7 @@ def select_image():
 
     cv2.namedWindow("Gray Image", cv2.WINDOW_NORMAL)
     cv2.setMouseCallback("Gray Image", mouse_callback)
+
 
 def export_data_to_excel():
     if img is None:
@@ -361,6 +400,7 @@ def export_data_to_excel():
     workbook.save(filename)
     messagebox.showinfo("Success", "Data exported and chart added successfully!")
 
+
 select_button = tk.Button(root, text="Select Image", command=select_image)
 select_button.grid(row=0, column=0, sticky="ew")
 
@@ -382,45 +422,54 @@ export_button = tk.Button(
     root, text="Export Data to Excel", command=export_data_to_excel
 )
 
+
 def save_gray_img():
     global gray_img, rectangles
     if gray_img is None:
         messagebox.showerror("Error", "Please select an image first.")
         return
-    
+
     # Get current time for filename
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    
+
     # Open save file dialog
     filename = filedialog.asksaveasfilename(
         defaultextension=".png",
         title="Save Gray Image",
         initialfile=f"gray_image_{current_time}.png",
-        filetypes=[("PNG files", "*.png"), ("All files", "*.*")]
+        filetypes=[("PNG files", "*.png"), ("All files", "*.*")],
     )
-    
+
     if filename:
         # Create a copy of the gray image to draw on
         img_with_rectangles = gray_img.copy()
-        
+
         # Draw rectangles and their names on the image
         for idx, rect in enumerate(rectangles):
             cv2.rectangle(img_with_rectangles, rect[0], rect[1], (0, 255, 0), 2)
             # Calculate position for text (above the rectangle)
             text_x = rect[0][0]
             text_y = rect[0][1] - 10  # 10 pixels above the rectangle
-            cv2.putText(img_with_rectangles, f"Chart {idx+1}", (text_x, text_y), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-        
+            cv2.putText(
+                img_with_rectangles,
+                f"Chart {idx+1}",
+                (text_x, text_y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 255, 0),
+                1,
+            )
+
         # Save the image with rectangles and names
         cv2.imwrite(filename, img_with_rectangles)
-        messagebox.showinfo("Success", "Gray image with rectangles and names saved successfully!")
-    
-save_gray_image_button = tk.Button(
-    root, text="Save Gray Image", command=save_gray_img
-)
+        messagebox.showinfo(
+            "Success", "Gray image with rectangles and names saved successfully!"
+        )
 
-    
+
+save_gray_image_button = tk.Button(root, text="Save Gray Image", command=save_gray_img)
+
+
 save_gray_image_button.grid(row=0, column=4, sticky="ew")
 export_button.grid(row=0, column=3, sticky="ew")
 
