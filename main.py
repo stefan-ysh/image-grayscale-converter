@@ -134,6 +134,9 @@ def show_context_menu(x, y, rect_index):
     context_menu.add_command(
         label="Delete", command=lambda: delete_rectangle(rect_index)
     )
+    context_menu.add_command(
+        label="Change Points", command=lambda: edit_rectangle_points(rect_index)
+    )
     context_menu.post(root.winfo_pointerx(), root.winfo_pointery())
 
 
@@ -141,6 +144,20 @@ def delete_rectangle(rect_index):
     rectangles.pop(rect_index)
     update_display_image()
     update_plot()
+
+
+def edit_rectangle_points(rect_index):
+    start, end, name, max_points = rectangles[rect_index]
+    new_max_points = simpledialog.askinteger(
+        "Edit Points",
+        f"Enter new number of points for {name} (current: {max_points}):",
+        initialvalue=max_points,
+        minvalue=10,
+        maxvalue=100000
+    )
+    if new_max_points:
+        rectangles[rect_index] = (start, end, name, new_max_points)
+        update_plot()
 
 
 def is_point_in_rect(x, y, start, end):
