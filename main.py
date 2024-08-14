@@ -1,7 +1,7 @@
 #-- coding: UTF-8 --
 import cv2
 import tkinter as tk
-from tkinter import filedialog, simpledialog, Menu
+from tkinter import filedialog, simpledialog, Menu, Scale, Entry
 import matplotlib.pyplot as plt
 from openpyxl import load_workbook
 from openpyxl.chart import LineChart, Reference
@@ -157,16 +157,43 @@ def delete_rectangle(rect_index):
 
 def edit_rectangle_points(rect_index):
     start, end, name, max_points = rectangles[rect_index]
-    new_max_points = simpledialog.askinteger(
-        "Edit Points",
-        f"Enter new number of points for {name} (current: {max_points}):",
-        initialvalue=max_points,
-        minvalue=10,
-        maxvalue=100000
-    )
-    if new_max_points:
-        rectangles[rect_index] = (start, end, name, new_max_points)
-        update_plot()
+    
+    # 创建一个新的顶层窗口
+    top = tk.Toplevel(root)
+    top.title(f"Edit Points for {name}")
+    
+    # 创建并放置滑动条
+    slider = Scale(top, from_=10, to=100000, orient="horizontal", length=300, label="Number of Points")
+    slider.set(max_points)
+    slider.pack(pady=20)
+    
+    # 创建输入框
+    entry = Entry(top)
+    entry.insert(0, str(max_points))
+    entry.pack(pady=10)
+    
+    # 更新函数
+    def update_value(val):
+        entry.delete(0, tk.END)
+        entry.insert(0, val)
+    
+    slider.config(command=update_value)
+    
+    # 确认按钮
+    def on_confirm():
+        try:
+            new_max_points = int(entry.get())
+            if 10 <= new_max_points <= 100000:
+                rectangles[rect_index] = (start, end, name, new_max_points)
+                update_plot()
+                top.destroy()
+            else:
+                messagebox.showerror("Error", "Please enter a value between 10 and 100000.")
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a valid integer.")
+    
+    confirm_button = tk.Button(top, text="Confirm", command=on_confirm)
+    confirm_button.pack(pady=10)
 
 
 def is_point_in_rect(x, y, start, end):
@@ -335,6 +362,47 @@ def update_plot():
 
 def set_max_points():
     global MAX_POINTS
+    
+    # 创建一个新的顶层窗口
+    top = tk.Toplevel(root)
+    top.title("Set Max Points")
+    
+    # 创建并放置滑动条
+    slider = Scale(top, from_=10, to=100000, orient="horizontal", length=300, label="Max Points")
+    slider.set(MAX_POINTS)
+    slider.pack(pady=20)
+    
+    # 创建输入框
+    entry = Entry(top)
+    entry.insert(0, str(MAX_POINTS))
+    entry.pack(pady=10)
+    
+    # 更新函数
+    def update_value(val):
+        entry.delete(0, tk.END)
+        entry.insert(0, val)
+    
+    slider.config(command=update_value)
+    
+    # 说明文本
+    explanation = tk.Label(top, text="1. 较小的值会减少数据量，加快处理速度，但可能丢失细节。\n"
+                                     "2. 较大的值会保留更多细节，但可能会降低性能。\n"
+                                     "3. 对于高分辨率图像或大区域，可能需要更大的值。\n"
+                                     "4. 更改后将应用于新生成的图表。", justify=tk.LEFT)
+    explanation.pack(pady=10)
+    
+    # 确认按钮
+    def on_confirm():
+        global MAX_POINTS
+        MAX_POINTS = slider.get()
+        set_max_points_num_button.config(text=f"Set Max Points ({MAX_POINTS})")
+        top.destroy()
+    
+    confirm_button = tk.Button(top, text="Confirm", command=on_confirm)
+    confirm_button.pack(pady=10)
+
+
+def select_image():
     new_max_points = simpledialog.askinteger(
         "设置最大点数",
         "请输入新的最大点数（建议范围：100-10000）：\n\n"
