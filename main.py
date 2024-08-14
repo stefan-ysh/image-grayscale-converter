@@ -56,7 +56,7 @@ show_loading_screen()  # Show loading screen
 
 root.deiconify()  # Show the main window after loading
 root.title("Image Grayscale Chart Generator")
-# 设置窗口图标
+# set the window icon
 # root.iconbitmap("logo.ico")
 pixel_data_with_coordinates = []
 rectangles = []
@@ -78,7 +78,7 @@ line_start = None
 
 mode = "rectangle"
 
-# 设置初始最大点数
+# set the initial max points
 MAX_POINTS = 1000
 
 # 新增变量
