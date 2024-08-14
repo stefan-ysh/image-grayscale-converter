@@ -277,6 +277,11 @@ def update_plot():
             if len(rect_pixels) > max_points:
                 indices = np.linspace(0, len(rect_pixels) - 1, max_points, dtype=int)
                 rect_pixels = rect_pixels[indices]
+            elif len(rect_pixels) < max_points:
+                # 如果像素数量不足，使用真是像素数量
+                max_points = len(rect_pixels)
+                # 同步更新 rectangles 中的 max_points
+                rectangles[idx] = (start, end, name, max_points)
 
             rect_data = [
                 (i + 1, gray_value) for i, gray_value in enumerate(rect_pixels)
