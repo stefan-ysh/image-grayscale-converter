@@ -11,11 +11,42 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import messagebox
 from image_processor import ImageProcessor
 import numpy as np
+import time
+
+# show loading screen when the program is launching
+def show_loading_screen():
+    loading_window = tk.Toplevel()
+    loading_window.title("Loading")
+    loading_window.geometry("300x100")
+    loading_window.resizable(False, False)
+    # Center the loading window on the screen
+    screen_width = loading_window.winfo_screenwidth()
+    screen_height = loading_window.winfo_screenheight()
+    x = (screen_width - 300) // 2
+    y = (screen_height - 100) // 2
+    loading_window.geometry(f"300x100+{x}+{y}")
+    loading_label = tk.Label(loading_window, text="Loading...", font=("Arial", 16))
+    loading_label.pack(pady=20)
+    
+    progress_bar = tk.Canvas(loading_window, width=200, height=20)
+    progress_bar.pack()
+    
+    for i in range(100):
+        progress_bar.create_rectangle(i*2, 0, (i+1)*2, 20, fill="blue")
+        loading_window.update()
+        time.sleep(0.02)
+    
+    loading_window.destroy()
 
 root = tk.Tk()
+root.withdraw()  # Hide the main window initially
+
+show_loading_screen()  # Show loading screen
+
+root.deiconify()  # Show the main window after loading
 root.title("Image Grayscale Chart Generator")
 # 设置窗口图标
-root.iconbitmap("logo.ico")
+# root.iconbitmap("logo.ico")
 pixel_data_with_coordinates = []
 rectangles = []
 lines = []
