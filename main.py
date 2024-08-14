@@ -132,7 +132,15 @@ def update_plot_from_rectangle():
 
         rect_data = [(i + 1, gray_value) for i, gray_value in enumerate(rect_pixels)]
 
-        ax = plt.subplot(rows, cols, idx + 1)
+        row = idx // cols
+        col = idx % cols
+        
+        # 如果是最后一行且只有一个图，则占据整行
+        if row == rows - 1 and num_plots % 2 != 0:
+            ax = plt.subplot(rows, 1, row + 1)
+        else:
+            ax = plt.subplot(rows, cols, idx + 1)
+        
         x_data = [i for i, _ in rect_data]
         y_data = [gray_value for _, gray_value in rect_data]
         ax.plot(x_data, y_data, marker="", linewidth=line_width, color=color)
@@ -147,8 +155,10 @@ def update_plot_from_rectangle():
 def update_plot():
     plt.clf()
     num_plots = len(lines) + len(rectangles) + (1 if mouse_coordinates else 0)
-    cols = 1 if num_plots == 1 else 2  # 如果只有一个折线图，使用单列布局
-    rows = num_plots if num_plots > 1 else 1  # 如果只有一个折线图，行数等于1
+    cols = 2
+    rows = (num_plots + 1) // cols
+
+    plot_index = 1
 
     if mouse_coordinates:
         x_data = []
@@ -165,7 +175,7 @@ def update_plot():
             x_data = [x_data[i] for i in indices]
             y_data = [y_data[i] for i in indices]
 
-        ax = plt.subplot(rows, cols, 1)
+        ax = plt.subplot(rows, cols, plot_index)
         ax.plot(
             x_data,
             y_data,
@@ -177,6 +187,7 @@ def update_plot():
         ax.set_title(f"Mouse Path (Points: {MAX_POINTS})")
         ax.set_xlabel("Pixel Index")
         ax.set_ylabel("Gray Value")
+        plot_index += 1
 
     for idx, (start, end, color, name) in enumerate(lines):
         x_data = []
@@ -199,13 +210,14 @@ def update_plot():
                 x_data = [x_data[i] for i in indices]
                 y_data = [y_data[i] for i in indices]
 
-            ax = plt.subplot(rows, cols, idx + 2 if mouse_coordinates else idx + 1)
+            ax = plt.subplot(rows, cols, plot_index)
             ax.plot(
                 x_data, y_data, marker="", linewidth=line_width, label=name, color=color
             )
             ax.set_title(f"{name} (Points: {MAX_POINTS})")
             ax.set_xlabel("Pixel Index")
             ax.set_ylabel("Gray Value")
+            plot_index += 1
 
     for idx, (start, end, color, name, max_points) in enumerate(rectangles):
         x_data = []
@@ -233,17 +245,19 @@ def update_plot():
                 x_data = [x_data[i] for i in indices]
                 y_data = [y_data[i] for i in indices]
 
-            ax = plt.subplot(
-                rows,
-                cols,
-                len(lines) + idx + 2 if mouse_coordinates else len(lines) + idx + 1,
-            )
+            # 如果是最后一行且只有一个图，则占据整行
+            if plot_index == num_plots and num_plots % 2 != 0:
+                ax = plt.subplot(rows, 1, rows)
+            else:
+                ax = plt.subplot(rows, cols, plot_index)
+            
             ax.plot(
                 x_data, y_data, marker="", linewidth=line_width, label=name, color=color
             )
             ax.set_title(f"{name} (Points: {max_points})")
             ax.set_xlabel("Pixel Index")
             ax.set_ylabel("Gray Value")
+            plot_index += 1
 
     plt.tight_layout()
     canvas.draw()
