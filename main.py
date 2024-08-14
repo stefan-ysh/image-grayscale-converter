@@ -2,6 +2,10 @@ import cv2
 import tkinter as tk
 from tkinter import filedialog
 import matplotlib.pyplot as plt
+from openpyxl import load_workbook
+# from openpyxl.utils.dataframe import dataframe_to_rows
+# from openpyxl.drawing.image import Image
+from openpyxl.chart import LineChart, Reference
 import pandas as pd
 from datetime import datetime
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -9,169 +13,316 @@ from tkinter import colorchooser
 from tkinter import messagebox
 from image_processor import ImageProcessor
 
-# 创建一个简单的GUI窗口
 root = tk.Tk()
 root.title("Image Uploader")
 
-# 初始化记录鼠标滑过的像素点坐标和灰度值的列表
 pixel_data_with_coordinates = []
+rectangles = []
+lines = []
 
-# 初始化图像
+mouse_coordinates = []
 img = None
+gray_img = None
 
-# 初始化灰度图像
-gray_img = {}
+line_colors = ['#FF0000', '#FFFF00']  # 红色和黄色
+line_width = 1
+mouse_pressed = False
 
-# 设置折线图的颜色和宽度
-line_color = 'lightblue'
-line_width = 2
+rect_start = None
+rect_end = None
+rect_thickness = 2
+
+line_start = None
+line_thickness = 1
+current_color_index = 0
+
+mode = 'rectangle'
 
 
-# 鼠标回调函数
+def hex_to_bgr(hex_color):
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i+2], 16) for i in (4, 2, 0))  # BGR 顺序
+
+
 def mouse_callback(event, x, y, flags, param):
-    if event == cv2.EVENT_MOUSEMOVE:
-        # 获取当前鼠标位置的灰度值
-        gray_value = gray_img[y, x]
-        print(f"Gray value at position ({x}, {y}): {gray_value}")
+    global rect_start, rect_end, mouse_pressed, mouse_coordinates, rectangles, line_start, lines, current_color_index
 
-        # 记录像素点的坐标和灰度值
-        pixel_data_with_coordinates.append((x, y, gray_value))
-        # 更新折线图
+    if mode == 'mouse_hover':
+        print('do nothing')
+    elif mode == 'rectangle':
+        if event == cv2.EVENT_LBUTTONDOWN:
+            rect_start = (x, y)
+            rect_end = None
+        elif event == cv2.EVENT_MOUSEMOVE:
+            if rect_start:
+                rect_end = (x, y)
+                update_display_image()
+        elif event == cv2.EVENT_LBUTTONUP:
+            rect_end = (x, y)
+            if rect_start != rect_end:
+                rectangle_name = f'Rectangle {len(rectangles) + 1}'
+                rectangles.append((rect_start, rect_end, line_colors[current_color_index], rectangle_name))
+                current_color_index = (current_color_index + 1) % len(line_colors)
+                update_display_image()
+                update_plot_from_rectangle()
+            rect_start = None
+            rect_end = None
+
+
+def update_display_image():
+    if img is None or gray_img is None:
+        return
+
+    display_img = gray_img.copy()
+
+    if mode == 'rectangle':
+        for start, end, color, name in rectangles:
+            bgr_color = hex_to_bgr(color)
+            cv2.rectangle(display_img, start, end, bgr_color, rect_thickness)
+            text_position = (start[0], start[1] - 10)
+            cv2.putText(display_img, name, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, bgr_color, 1, cv2.LINE_AA)
+
+    cv2.imshow("Gray Image", display_img)
+
+
+def update_plot_from_rectangle():
+    global pixel_data_with_coordinates
+
+    if not rectangles:
+        return
+
+    plt.clf()
+    num_plots = len(rectangles)
+    cols = 2
+    rows = (num_plots + 1) // cols
+
+    for idx, (start, end, color, name) in enumerate(rectangles):
+        x1, y1 = start
+        x2, y2 = end
+        x1, x2 = sorted([max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))])
+        y1, y2 = sorted([max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))])
+
+        rect_pixels = gray_img[y1:y2, x1:x2].flatten()
+        rect_data = [(i + 1, gray_value) for i, gray_value in enumerate(rect_pixels)]
+
+        ax = plt.subplot(rows, cols, idx + 1)
+        x_data = [i for i, _ in rect_data]
+        y_data = [gray_value for _, gray_value in rect_data]
+        ax.plot(x_data, y_data, marker='', linewidth=line_width, color=color)
+        ax.set_title(name)
+        ax.set_xlabel("Pixel Index")
+        ax.set_ylabel("Gray Value")
+
+    plt.tight_layout()
+    canvas.draw()
+
+
+def update_plot():
+    plt.clf()
+    num_plots = len(lines) + len(rectangles) + (1 if mouse_coordinates else 0)
+    cols = 1 if num_plots == 1 else 2  # 如果只有一个折线图，使用单列布局
+    rows = num_plots if num_plots > 1 else 1  # 如果只有一个折线图，行数等于1
+
+    if mouse_coordinates:
+        x_data = []
+        y_data = []
+        for i, (x, y) in enumerate(mouse_coordinates):
+            if 0 <= x < gray_img.shape[1] and 0 <= y < gray_img.shape[0]:
+                gray_value = gray_img[y, x]
+                x_data.append(i + 1)
+                y_data.append(gray_value)
+        ax = plt.subplot(rows, cols, 1)
+        ax.plot(x_data, y_data, marker='', linewidth=line_width, label='Mouse Path', color='blue')
+        ax.set_title('Mouse Path')
+        ax.set_xlabel("Pixel Index")
+        ax.set_ylabel("Gray Value")
+
+    for idx, (start, end, color, name) in enumerate(lines):
+        x_data = []
+        y_data = []
+        if start and end:
+            x1, y1 = start
+            x2, y2 = end
+            num_points = max(abs(x2 - x1), abs(y2 - y1)) + 1
+            for i in range(num_points):
+                x = int(x1 + (x2 - x1) * i / (num_points - 1))
+                y = int(y1 + (y2 - y1) * i / (num_points - 1))
+                if 0 <= x < gray_img.shape[1] and 0 <= y < gray_img.shape[0]:
+                    gray_value = gray_img[y, x]
+                    x_data.append(i + 1)
+                    y_data.append(gray_value)
+            ax = plt.subplot(rows, cols, idx + 2 if mouse_coordinates else idx + 1)
+            ax.plot(x_data, y_data, marker='', linewidth=line_width, label=name, color=color)
+            ax.set_title(name)
+            ax.set_xlabel("Pixel Index")
+            ax.set_ylabel("Gray Value")
+
+    for idx, (start, end, color, name) in enumerate(rectangles):
+        x_data = []
+        y_data = []
+        if start and end:
+            x1, y1 = start
+            x2, y2 = end
+            x_coords = [x1, x2, x2, x1, x1]
+            y_coords = [y1, y1, y2, y2, y1]
+            for i in range(len(x_coords) - 1):
+                x1, y1 = x_coords[i], y_coords[i]
+                x2, y2 = x_coords[i + 1], y_coords[i + 1]
+                num_points = max(abs(x2 - x1), abs(y2 - y1)) + 1
+                for j in range(num_points):
+                    x = int(x1 + (x2 - x1) * j / (num_points - 1))
+                    y = int(y1 + (y2 - y1) * j / (num_points - 1))
+                    if 0 <= x < gray_img.shape[1] and 0 <= y < gray_img.shape[0]:
+                        gray_value = gray_img[y, x]
+                        x_data.append(j + 1)
+                        y_data.append(gray_value)
+            ax = plt.subplot(rows, cols, len(lines) + idx + 2 if mouse_coordinates else len(lines) + idx + 1)
+            ax.plot(x_data, y_data, marker='', linewidth=line_width, label=name, color=color)
+            ax.set_title(name)
+            ax.set_xlabel("Pixel Index")
+            ax.set_ylabel("Gray Value")
+
+    plt.tight_layout()
+    canvas.draw()
+
+
+def show_color_chooser():
+    color = colorchooser.askcolor(title="Select a color")
+    if color[1]:
+        global line_colors
+        line_colors = [color[1]]  # 仅支持选择单一颜色用于折线图
         update_plot()
 
 
-# 选择图片文件
 def select_image():
-    global img, gray_img, pixel_data_with_coordinates
+    global img, gray_img, pixel_data_with_coordinates, mouse_coordinates, rectangles, lines, rect_start, rect_end, line_start, current_color_index
     filename = filedialog.askopenfilename(
         title="Select image file",
         filetypes=(("Image files", "*.jpg *.jpeg *.png *.bmp"), ("All files", "*.*"))
     )
     if not filename:
         return
-    img = cv2.imread(filename)
+    img = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
     if img is None:
         messagebox.showerror("Error", "Could not open or find the image.")
         return
-    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gray_img = img.copy()
     cv2.imshow("Gray Image", gray_img)
-    # 清空数据
     pixel_data_with_coordinates = []
+    mouse_coordinates = []
+    rectangles = []
+    lines = []
+    rect_start = None
+    rect_end = None
+    line_start = None
+    current_color_index = 0
 
-    # 上传图片之后，保存图片、导出数据按钮启用
     save_button.config(state=tk.NORMAL)
     export_button.config(state=tk.NORMAL)
-
     update_plot()
-    # 创建一个用于显示图像的窗口
+
     cv2.namedWindow("Gray Image", cv2.WINDOW_NORMAL)
     cv2.setMouseCallback("Gray Image", mouse_callback)
 
 
-# 更新折线图
-def update_plot():
-    # 清除之前的图形
-    plt.clf()
-    # 绘制折线图
-    plt.plot(
-        [i + 1 for i, d in enumerate(pixel_data_with_coordinates)],
-        [d[2] for d in pixel_data_with_coordinates],
-        marker='',
-        color=line_color,
-        linewidth=line_width
-    )
-    plt.title("Pixel Gray Values Over Time")
-    plt.xlabel("Pixel Index")
-    plt.ylabel("Gray Value")
-    # 刷新图形
-    canvas.draw()
-
-
-# 创建选择图片的按钮和折线图canvas
-select_button = tk.Button(root, text="Select Image", command=select_image)
-select_button.grid(row=0, column=0, sticky="ew")
-
-
-def show_color_chooser():
-    color = colorchooser.askcolor(title="Select a color")
-    # print(f"Selected color: {color}")
-
-    global line_color
-    line_color = color[1]
-    # 按钮文字更新
-    choose_color_button.config(text=f"{line_color}")
-
-    update_plot()
-
-
-# 创建一个按钮，点击后会打开颜色选择器
-choose_color_button = tk.Button(root, text=f"{line_color}", command=show_color_chooser)
-# 位置在select_button的右侧
-choose_color_button.grid(row=0, column=1, sticky="ew")
-
-# 保存折线图的函数
-image_processor = ImageProcessor(img, plt)
-
-# 创建保存图片的按钮，并放置到GUI窗口中
-save_button = tk.Button(root, text="Save Plot Image", command=lambda: image_processor.save_plot_image(img, plt))
-
-save_button.grid(row=0, column=2, sticky="ew")
-
-
-# 导出数据到Excel的函数
 def export_data_to_excel():
-    # 如果没有选择图片，则不允许导出
     if img is None:
         messagebox.showerror("Error", "Please select an image first.")
         return
-    # 将记录的像素数据转换为DataFrame
-    df = pd.DataFrame(pixel_data_with_coordinates, columns=['X', 'Y', 'Gray'])
-    # 获取当前时间并格式化为字符串
+
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    # 弹出保存文件对话框，并使用当前时间作为默认文件名
+    # Ask user to select the location and file name to save the Excel file
     filename = filedialog.asksaveasfilename(
         defaultextension=".xlsx",
         title="Save Data as Excel File",
         initialfile=f"pixel_data_{current_time}.xlsx",
-        filetypes=[("Excel files", "*.xlsx"),
-                   ("All files", "*.*")]
+        filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
     )
-    if filename:
-        # 保存数据到指定路径的Excel文件
-        df.to_excel(filename, index=False)
-        # print(f"Data exported to {filename}")
-        messagebox.showinfo("Success", "Data exported successfully!")
+
+    if not filename:
+        return  # User canceled the save dialog
+
+        # Create an Excel file with pandas and openpyxl
+    with pd.ExcelWriter(filename, engine='openpyxl') as writer:
+        # Access the XlsxWriter workbook and worksheet objects
+        for idx, (start, end, color, name) in enumerate(rectangles):
+            x1, y1 = start
+            x2, y2 = end
+            x1, x2 = sorted([max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))])
+            y1, y2 = sorted([max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))])
+            rect_pixels = gray_img[y1:y2, x1:x2].flatten()
+            data = []
+            for i, gray_value in enumerate(rect_pixels):
+                x_coord = x1 + (i % (x2 - x1))  # Calculate x coordinate within the rectangle
+                y_coord = y1 + (i // (x2 - x1))  # Calculate y coordinate within the rectangle
+                data.append([i + 1, gray_value, x_coord, y_coord])
+
+            df = pd.DataFrame(data, columns=['Index', 'Gray', 'X', 'Y'])
+            sheet_name = f'Chart_{idx + 1}'
+
+            # Write the DataFrame to a new sheet
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+        # Load the workbook and add charts
+    workbook = load_workbook(filename)
+    for idx, sheet_name in enumerate(workbook.sheetnames):
+        worksheet = workbook[sheet_name]
+
+        # Create a LineChart object
+        chart = LineChart()
+        chart.title = f'Gray Value vs Index - {sheet_name}'
+        chart.style = 13
+        chart.x_axis.title = 'Index'
+        chart.y_axis.title = 'Gray Value'
+
+        # Select the data range
+        data = Reference(worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1)
+        categories = Reference(worksheet, min_col=1, min_row=2, max_row=len(df) + 1)
+
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(categories)
+
+        # Add the chart to the worksheet
+        worksheet.add_chart(chart, 'F2')
+
+    # Save the workbook
+    workbook.save(filename)
+    messagebox.showinfo("Success", "Data exported and chart added successfully!")
 
 
-# 创建导出数据的按钮，并放置到GUI窗口中
+select_button = tk.Button(root, text="Select Image", command=select_image)
+select_button.grid(row=0, column=0, sticky="ew")
+
+choose_color_button = tk.Button(root, text=f"{line_colors[0]}", command=show_color_chooser)
+choose_color_button.grid(row=0, column=1, sticky="ew")
+
+image_processor = ImageProcessor(img, plt)
+
+save_button = tk.Button(root, text="Save Plot Image", command=lambda: image_processor.save_plot_image(img, plt))
+save_button.grid(row=0, column=2, sticky="ew")
+
 export_button = tk.Button(root, text="Export Data to Excel", command=export_data_to_excel)
 export_button.grid(row=0, column=3, sticky="ew")
 
 
-# 创建用于显示折线图的Tkinter canvas
 def create_plot_canvas():
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(8, 6))  # Set initial size of figure
     canvas = FigureCanvasTkAgg(fig, master=root)
-    # 设置列跨越所有4列，并设置sticky为"nsew"以便在所有方向上扩展
-    canvas.get_tk_widget().grid(row=1, column=0, columnspan=4, sticky="nsew")
+    canvas.get_tk_widget().grid(row=1, column=0, columnspan=5, sticky="nsew")
     return canvas
 
 
-# 初始化时保存按钮和导出按钮禁用
 save_button.config(state="disabled")
 export_button.config(state="disabled")
 
-# 创建用于显示折线图的Tkinter canvas
 canvas = create_plot_canvas()
 update_plot()
-# 设置行和列的权重，使按钮随着窗口大小的改变而改变
 root.grid_rowconfigure(1, weight=1)
 root.grid_columnconfigure(0, weight=1)
 root.grid_columnconfigure(1, weight=1)
 root.grid_columnconfigure(2, weight=1)
 root.grid_columnconfigure(3, weight=1)
-# 运行GUI事件循环
-root.mainloop()
+root.grid_columnconfigure(4, weight=1)
 
-# 销毁所有窗口
+root.mainloop()
 cv2.destroyAllWindows()
