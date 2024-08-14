@@ -278,7 +278,7 @@ def set_max_points():
     )
     if new_max_points:
         MAX_POINTS = new_max_points
-        messagebox.showinfo("设置成功", f"最大点数已设置为 {MAX_POINTS}")
+        # messagebox.showinfo("设置成功", f"最大点数已设置为 {MAX_POINTS}")
         set_max_points_num_button.config(text=f"Set Max Points ({MAX_POINTS})")
 
 
