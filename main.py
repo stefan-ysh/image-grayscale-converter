@@ -1,4 +1,4 @@
-#-- coding: UTF-8 --
+# -- coding: UTF-8 --
 import cv2
 import tkinter as tk
 from tkinter import filedialog, simpledialog, Menu, Scale, Entry
@@ -13,6 +13,7 @@ from image_processor import ImageProcessor
 import numpy as np
 import time
 
+
 # show loading screen when the program is launching
 def show_loading_screen():
     loading_window = tk.Toplevel()
@@ -20,14 +21,14 @@ def show_loading_screen():
     loading_window.geometry("300x100")
     loading_window.resizable(False, False)
     # Disable window minimization
-    loading_window.attributes('-toolwindow', 1)
-    
+    loading_window.attributes("-toolwindow", 1)
+
     # Disable window closing
     loading_window.protocol("WM_DELETE_WINDOW", lambda: None)
-    
+
     # Remove the close button
     loading_window.overrideredirect(True)
-    
+
     # Center the loading window on the screen
     screen_width = loading_window.winfo_screenwidth()
     screen_height = loading_window.winfo_screenheight()
@@ -36,16 +37,17 @@ def show_loading_screen():
     loading_window.geometry(f"300x100+{x}+{y}")
     loading_label = tk.Label(loading_window, text="launching...", font=("Arial", 16))
     loading_label.pack(pady=20)
-    
+
     progress_bar = tk.Canvas(loading_window, width=200, height=20)
     progress_bar.pack()
-    
+
     for i in range(100):
-        progress_bar.create_rectangle(i*2, 0, (i+1)*2, 20, fill="blue")
+        progress_bar.create_rectangle(i * 2, 0, (i + 1) * 2, 20, fill="blue")
         loading_window.update()
         time.sleep(0.02)
-    
+
     loading_window.destroy()
+
 
 root = tk.Tk()
 root.withdraw()  # Hide the main window initially
@@ -54,7 +56,7 @@ show_loading_screen()  # Show loading screen
 
 root.deiconify()  # Show the main window after loading
 root.title("Image Grayscale Chart Generator")
-# 设置窗口图标
+# todo set the window icon
 # root.iconbitmap("logo.ico")
 pixel_data_with_coordinates = []
 rectangles = []
@@ -76,17 +78,17 @@ line_start = None
 
 mode = "rectangle"
 
-MAX_POINTS = 1000  # 设置初始最大点数
+# set the initial max points
+MAX_POINTS = 1000
 
-# 新增变量
 dragging = False
 drag_start = None
 resizing = None
 min_rect_size = 20
-circle_radius = 5  # 圆圈半径
-highlight_color = (0, 255, 0)  # 高亮颜色（绿色）
-MIN_RECT_WIDTH = 20  # 最小矩形宽度
-MIN_RECT_HEIGHT = 20  # 最小矩形高度
+circle_radius = 5
+highlight_color = (0, 255, 0)
+MIN_RECT_WIDTH = 20
+MIN_RECT_HEIGHT = 20
 
 
 def hex_to_bgr(hex_color):
@@ -119,10 +121,26 @@ def mouse_callback(event, x, y, flags, param):
                 dy = y - drag_start[1]
                 for i, (start, end, name, max_points) in enumerate(rectangles):
                     if is_point_in_rect(drag_start[0], drag_start[1], start, end):
-                        new_start = (max(0, min(start[0] + dx, gray_img.shape[1] - (end[0] - start[0]))),
-                                     max(0, min(start[1] + dy, gray_img.shape[0] - (end[1] - start[1]))))
-                        new_end = (new_start[0] + (end[0] - start[0]),
-                                   new_start[1] + (end[1] - start[1]))
+                        new_start = (
+                            max(
+                                0,
+                                min(
+                                    start[0] + dx,
+                                    gray_img.shape[1] - (end[0] - start[0]),
+                                ),
+                            ),
+                            max(
+                                0,
+                                min(
+                                    start[1] + dy,
+                                    gray_img.shape[0] - (end[1] - start[1]),
+                                ),
+                            ),
+                        )
+                        new_end = (
+                            new_start[0] + (end[0] - start[0]),
+                            new_start[1] + (end[1] - start[1]),
+                        )
                         rectangles[i] = (new_start, new_end, name, max_points)
                         break
                 drag_start = (x, y)
@@ -174,7 +192,10 @@ def mouse_callback(event, x, y, flags, param):
                         update_display_image()
                         update_plot()
                     else:
-                        messagebox.showwarning("Warning", f"Rectangle size too small. Minimum size is {MIN_RECT_WIDTH}x{MIN_RECT_HEIGHT} pixels.")
+                        messagebox.showwarning(
+                            "Warning",
+                            f"Rectangle size too small. Minimum size is {MIN_RECT_WIDTH}x{MIN_RECT_HEIGHT} pixels.",
+                        )
                 rect_start = None
                 rect_end = None
         elif event == cv2.EVENT_RBUTTONDOWN:
@@ -203,28 +224,35 @@ def delete_rectangle(rect_index):
 
 def edit_rectangle_points(rect_index):
     start, end, name, max_points = rectangles[rect_index]
-    
+
     # 创建一个新的顶层窗口
     top = tk.Toplevel(root)
     top.title(f"Edit Points for {name}")
-    
+
     # 创建并放置滑动条
-    slider = Scale(top, from_=10, to=100000, orient="horizontal", length=300, label="Number of Points")
+    slider = Scale(
+        top,
+        from_=10,
+        to=100000,
+        orient="horizontal",
+        length=300,
+        label="Number of Points",
+    )
     slider.set(max_points)
     slider.pack(pady=20)
-    
+
     # 创建输入框
     entry = Entry(top)
     entry.insert(0, str(max_points))
     entry.pack(pady=10)
-    
+
     # 更新函数
     def update_value(val):
         entry.delete(0, tk.END)
         entry.insert(0, val)
-    
+
     slider.config(command=update_value)
-    
+
     # 确认按钮
     def on_confirm():
         try:
@@ -234,10 +262,12 @@ def edit_rectangle_points(rect_index):
                 update_plot()
                 top.destroy()
             else:
-                messagebox.showerror("Error", "Please enter a value between 10 and 100000.")
+                messagebox.showerror(
+                    "Error", "Please enter a value between 10 and 100000."
+                )
         except ValueError:
             messagebox.showerror("Error", "Please enter a valid integer.")
-    
+
     confirm_button = tk.Button(top, text="Confirm", command=on_confirm)
     confirm_button.pack(pady=10)
 
@@ -258,30 +288,41 @@ def get_resize_direction(x, y, start, end, threshold=10):
         "top_left": (start[0], start[1]),
         "top_right": (end[0], start[1]),
         "bottom_left": (start[0], end[1]),
-        "bottom_right": (end[0], end[1])
+        "bottom_right": (end[0], end[1]),
     }
-    
+
     for direction, (cx, cy) in corners.items():
         if abs(x - cx) < threshold and abs(y - cy) < threshold:
             return direction
-    
+
     return None
 
 
 def resize_rectangle(start, end, x, y, direction):
     new_start, new_end = start, end
     if direction == "top_left":
-        new_start = (max(0, min(x, end[0] - MIN_RECT_WIDTH)), max(0, min(y, end[1] - MIN_RECT_HEIGHT)))
+        new_start = (
+            max(0, min(x, end[0] - MIN_RECT_WIDTH)),
+            max(0, min(y, end[1] - MIN_RECT_HEIGHT)),
+        )
     elif direction == "top_right":
         new_start = (start[0], max(0, min(y, end[1] - MIN_RECT_HEIGHT)))
-        new_end = (max(start[0] + MIN_RECT_WIDTH, min(x, gray_img.shape[1] - 1)), end[1])
+        new_end = (
+            max(start[0] + MIN_RECT_WIDTH, min(x, gray_img.shape[1] - 1)),
+            end[1],
+        )
     elif direction == "bottom_left":
         new_start = (max(0, min(x, end[0] - MIN_RECT_WIDTH)), start[1])
-        new_end = (end[0], max(start[1] + MIN_RECT_HEIGHT, min(y, gray_img.shape[0] - 1)))
+        new_end = (
+            end[0],
+            max(start[1] + MIN_RECT_HEIGHT, min(y, gray_img.shape[0] - 1)),
+        )
     elif direction == "bottom_right":
-        new_end = (max(start[0] + MIN_RECT_WIDTH, min(x, gray_img.shape[1] - 1)),
-                   max(start[1] + MIN_RECT_HEIGHT, min(y, gray_img.shape[0] - 1)))
-    
+        new_end = (
+            max(start[0] + MIN_RECT_WIDTH, min(x, gray_img.shape[1] - 1)),
+            max(start[1] + MIN_RECT_HEIGHT, min(y, gray_img.shape[0] - 1)),
+        )
+
     return new_start, new_end
 
 
@@ -393,42 +434,48 @@ def update_plot():
 
 def set_max_points():
     global MAX_POINTS
-    
+
     # 创建一个新的顶层窗口
     top = tk.Toplevel(root)
     top.title("Set Max Points")
-    
+
     # 创建并放置滑动条
-    slider = Scale(top, from_=10, to=100000, orient="horizontal", length=300, label="Max Points")
+    slider = Scale(
+        top, from_=10, to=100000, orient="horizontal", length=300, label="Max Points"
+    )
     slider.set(MAX_POINTS)
     slider.pack(pady=20)
-    
+
     # 创建输入框
     entry = Entry(top)
     entry.insert(0, str(MAX_POINTS))
     entry.pack(pady=10)
-    
+
     # 更新函数
     def update_value(val):
         entry.delete(0, tk.END)
         entry.insert(0, val)
-    
+
     slider.config(command=update_value)
-    
+
     # 说明文本
-    explanation = tk.Label(top, text="1. 较小的值会减少数据量，加快处理速度，但可能丢失细节。\n"
-                                     "2. 较大的值会保留更多细节，但可能会降低性能。\n"
-                                     "3. 对于高分辨率图像或大区域，可能需要更大的值。\n"
-                                     "4. 更改后将应用于新生成的图表。", justify=tk.LEFT)
+    explanation = tk.Label(
+        top,
+        text="1. 较小的值会减少数据量，加快处理速度，但可能丢失细节。\n"
+        "2. 较大的值会保留更多细节，但可能会降低性能。\n"
+        "3. 对于高分辨率图像或大区域，可能需要更大的值。\n"
+        "4. 更改后将应用于新生成的图表。",
+        justify=tk.LEFT,
+    )
     explanation.pack(pady=10)
-    
+
     # 确认按钮
     def on_confirm():
         global MAX_POINTS
         MAX_POINTS = slider.get()
         set_max_points_num_button.config(text=f"Set Max Points ({MAX_POINTS})")
         top.destroy()
-    
+
     confirm_button = tk.Button(top, text="Confirm", command=on_confirm)
     confirm_button.pack(pady=10)
 
