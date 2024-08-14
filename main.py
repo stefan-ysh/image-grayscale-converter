@@ -81,7 +81,6 @@ mode = "rectangle"
 # set the initial max points
 MAX_POINTS = 1000
 
-# 新增变量
 dragging = False
 drag_start = None
 resizing = None
