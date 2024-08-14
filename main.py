@@ -12,8 +12,9 @@ from image_processor import ImageProcessor
 import numpy as np
 
 root = tk.Tk()
-root.title("Image Uploader")
-
+root.title("Image Grayscale Chart Generator")
+# 设置窗口图标
+root.iconbitmap("logo.ico")
 pixel_data_with_coordinates = []
 rectangles = []
 lines = []
