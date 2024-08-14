@@ -76,6 +76,7 @@ rect_thickness = 1
 
 line_start = None
 
+# set the initial mode
 mode = "rectangle"
 
 # set the initial max points
