@@ -97,7 +97,7 @@ def hex_to_bgr(hex_color):
     hex_color = hex_color.lstrip("#")
     return tuple(int(hex_color[i : i + 2], 16) for i in (4, 2, 0))  # BGR 顺序
 
-
+# mouse event
 def mouse_callback(event, x, y, flags, param):
     global rect_start, rect_end, mouse_pressed, mouse_coordinates, rectangles, line_start, lines
     global dragging, drag_start, resizing
