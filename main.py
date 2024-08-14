@@ -106,7 +106,7 @@ def mouse_callback(event, x, y, flags, param):
                 update_plot()  # 在鼠标抬起时更新plot
             elif rect_start and rect_end:
                 if rect_start != rect_end:
-                    rectangle_name = f"Rectangle {len(rectangles) + 1}"
+                    rectangle_name = f"Chart {len(rectangles) + 1}"
                     rectangles.append(
                         (
                             rect_start,
