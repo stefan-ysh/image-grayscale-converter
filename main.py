@@ -683,6 +683,14 @@ save_chart_button.config(state="disabled")
 export_button.config(state="disabled")
 save_gray_image_button.config(state="disabled")
 
+# 关闭窗口
+def on_closing_root_win():
+    if messagebox.askokcancel("Quit", "Are you sure you want to quit?"):
+        # 关闭gray_img窗口
+        cv2.destroyAllWindows()
+        # 关闭root窗口
+        root.destroy()
+        
 canvas = create_plot_canvas()
 update_plot()
 root.grid_rowconfigure(1, weight=1)
@@ -692,5 +700,7 @@ root.grid_columnconfigure(2, weight=1)
 root.grid_columnconfigure(3, weight=1)
 root.grid_columnconfigure(4, weight=1)
 
+# 监听关闭主窗口的事件
+root.protocol("WM_DELETE_WINDOW", on_closing_root_win)
 root.mainloop()
 cv2.destroyAllWindows()
