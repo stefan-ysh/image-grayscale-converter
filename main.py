@@ -523,7 +523,7 @@ def select_image():
     rect_end = None
     line_start = None
 
-    save_button.config(state=tk.NORMAL)
+    save_chart_button.config(state=tk.NORMAL)
     export_button.config(state=tk.NORMAL)
     save_gray_image_button.config(state=tk.NORMAL)
     update_plot()
@@ -609,12 +609,12 @@ set_max_points_num_button.grid(row=0, column=1, sticky="ew")
 
 image_processor = ImageProcessor(img, plt)
 
-save_button = tk.Button(
+save_chart_button = tk.Button(
     root,
-    text="Save Plot Image",
+    text="Save Chart Image",
     command=lambda: image_processor.save_plot_image(img, plt),
 )
-save_button.grid(row=0, column=2, sticky="ew")
+save_chart_button.grid(row=0, column=2, sticky="ew")
 
 export_button = tk.Button(
     root, text="Export Data to Excel", command=export_data_to_excel
@@ -679,7 +679,7 @@ def create_plot_canvas():
     return canvas
 
 
-save_button.config(state="disabled")
+save_chart_button.config(state="disabled")
 export_button.config(state="disabled")
 save_gray_image_button.config(state="disabled")
 
