@@ -72,7 +72,7 @@ mouse_pressed = False
 
 rect_start = None
 rect_end = None
-rect_thickness = 1
+rect_thickness = 2
 
 line_start = None
 
