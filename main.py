@@ -66,7 +66,7 @@ mouse_coordinates = []
 img = None
 gray_img = None
 
-line_color = "#1d82fe"  # 蓝色
+line_color = "#0000ff"  # 蓝色
 line_width = 1
 mouse_pressed = False
 
