@@ -685,7 +685,7 @@ save_gray_image_button.config(state="disabled")
 
 # 关闭窗口
 def on_closing_root_win():
-    if messagebox.askokcancel("Quit", "Are you sure you want to quit?"):
+    if messagebox.askokcancel("Quit", "Are you sure to quit?"):
         # 关闭gray_img窗口
         cv2.destroyAllWindows()
         # 关闭root窗口
