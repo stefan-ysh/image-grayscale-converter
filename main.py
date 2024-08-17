@@ -548,6 +548,7 @@ def export_data_to_excel():
                 rect_pixels = rect_pixels[indices]
             else:
                 indices = np.arange(total_points)
+                max_points = total_points  # 更新max_points为实际点数
 
             data = []
             for i, (index, gray_value) in enumerate(zip(indices, rect_pixels)):
@@ -560,28 +561,27 @@ def export_data_to_excel():
 
             df.to_excel(writer, sheet_name=sheet_name, index=False)
 
-    workbook = load_workbook(filename)
-    for idx, sheet_name in enumerate(workbook.sheetnames):
-        worksheet = workbook[sheet_name]
+            # 在这里创建和添加图表
+            worksheet = writer.sheets[sheet_name]
 
-        chart = LineChart()
-        chart.title = f"Gray Value vs Index - {sheet_name}"
-        chart.style = 13
-        chart.x_axis.title = "Index"
-        chart.y_axis.title = "Gray Value"
+            chart = LineChart()
+            chart.title = f"Gray Value vs Index - {name}"
+            chart.style = 13
+            chart.x_axis.title = "Index"
+            chart.y_axis.title = "Gray Value"
 
-        data = Reference(
-            worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1
-        )
-        categories = Reference(worksheet, min_col=1, min_row=2, max_row=len(df) + 1)
+            data = Reference(worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1)
+            categories = Reference(worksheet, min_col=1, min_row=2, max_row=len(df) + 1)
 
-        chart.add_data(data, titles_from_data=True)
-        chart.set_categories(categories)
+            chart.add_data(data, titles_from_data=True)
+            chart.set_categories(categories)
 
-        worksheet.add_chart(chart, "F2")
+            # 设置x轴的最大值为实际的点数
+            chart.x_axis.scaling.max = max_points
 
-    workbook.save(filename)
-    messagebox.showinfo("Success", "Data exported and chart added successfully!")
+            worksheet.add_chart(chart, "F2")
+
+    messagebox.showinfo("Success", "Data exported and charts added successfully!")
 
 
 select_button = tk.Button(root, text="Select Image", command=select_image)
