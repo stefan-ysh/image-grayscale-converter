@@ -468,7 +468,7 @@ def set_max_points():
         "2. 较大的值会保留更多细节，但可能会降低性能。\n"
         "3. 对于高分辨率图像或大区域，可能需要更大的值。\n"
         "4. 更改后将应用于新生成的图表。",
-        justify=tk.LEFT,
+        justify=tk.CENTER,
     )
     explanation.pack(pady=10)
 
