@@ -542,14 +542,17 @@ def export_data_to_excel():
             )
             rect_pixels = gray_img[y1:y2, x1:x2].flatten()
 
-            if len(rect_pixels) > max_points:
-                indices = np.linspace(0, len(rect_pixels) - 1, max_points, dtype=int)
+            total_points = len(rect_pixels)
+            if total_points > max_points:
+                indices = np.linspace(0, total_points - 1, max_points, dtype=int)
                 rect_pixels = rect_pixels[indices]
+            else:
+                indices = np.arange(total_points)
 
             data = []
-            for i, gray_value in enumerate(rect_pixels):
-                x_coord = x1 + (i % (x2 - x1))
-                y_coord = y1 + (i // (x2 - x1))
+            for i, (index, gray_value) in enumerate(zip(indices, rect_pixels)):
+                x_coord = x1 + (index % (x2 - x1))
+                y_coord = gray_img.shape[0] - (y1 + (index // (x2 - x1))) - 1
                 data.append([i + 1, gray_value, x_coord, y_coord])
 
             df = pd.DataFrame(data, columns=["Index", "Gray", "X", "Y"])
