@@ -484,24 +484,6 @@ def set_max_points():
 
 
 def select_image():
-    new_max_points = simpledialog.askinteger(
-        "设置最大点数",
-        "请输入新的最大点数（建议范围：100-10000）：\n\n"
-        "说明：\n"
-        "1. 较小的值会减少数据量，加快处理速度，但可能丢失细节。\n"
-        "2. 较大的值会保留更多细节，但可能会降低性能。\n"
-        "3. 对于高分辨率图像或大区域，可能需要更大的值。\n"
-        "4. 更改后将应用于新生成的图表。",
-        initialvalue=MAX_POINTS,
-        minvalue=10,
-        maxvalue=100000,
-    )
-    if new_max_points:
-        MAX_POINTS = new_max_points
-        set_max_points_num_button.config(text=f"Set Max Points ({MAX_POINTS})")
-
-
-def select_image():
     global img, gray_img, pixel_data_with_coordinates, mouse_coordinates, rectangles, lines, rect_start, rect_end, line_start
     filename = filedialog.askopenfilename(
         title="Select image file",
