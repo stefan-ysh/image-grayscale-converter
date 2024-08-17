@@ -620,53 +620,7 @@ export_button = tk.Button(
     root, text="Export Data to Excel", command=export_data_to_excel
 )
 
-
-def save_gray_img():
-    global gray_img, rectangles
-    if gray_img is None:
-        messagebox.showerror("Error", "Please select an image first.")
-        return
-
-    # Get current time for filename
-    current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-    # Open save file dialog
-    filename = filedialog.asksaveasfilename(
-        defaultextension=".png",
-        title="Save Gray Image",
-        initialfile=f"gray_image_{current_time}.png",
-        filetypes=[("PNG files", "*.png"), ("All files", "*.*")],
-    )
-
-    if filename:
-        # Create a copy of the gray image to draw on
-        img_with_rectangles = gray_img.copy()
-
-        # Draw rectangles and their names on the image
-        for idx, rect in enumerate(rectangles):
-            cv2.rectangle(img_with_rectangles, rect[0], rect[1], (0, 255, 0), 2)
-            # Calculate position for text (above the rectangle)
-            text_x = rect[0][0]
-            text_y = rect[0][1] - 10  # 10 pixels above the rectangle
-            cv2.putText(
-                img_with_rectangles,
-                f"Chart {idx+1}",
-                (text_x, text_y),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (0, 255, 0),
-                1,
-            )
-
-        # Save the image with rectangles and names
-        cv2.imwrite(filename, img_with_rectangles)
-        messagebox.showinfo(
-            "Success", "Gray image with rectangles and names saved successfully!"
-        )
-
-
-save_gray_image_button = tk.Button(root, text="Save Gray Image", command=save_gray_img)
-
+save_gray_image_button = tk.Button(root, text="Save Gray Image", command=lambda: image_processor.save_gray_img(cv2, gray_img, rectangles))
 
 save_gray_image_button.grid(row=0, column=4, sticky="ew")
 export_button.grid(row=0, column=3, sticky="ew")
