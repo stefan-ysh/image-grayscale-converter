@@ -503,28 +503,51 @@ def set_max_points():
         entry.delete(0, tk.END)
         entry.insert(0, val)
 
+    def update_slider(event):
+        try:
+            value = int(entry.get())
+            if 10 <= value <= 100000:
+                slider.set(value)
+        except ValueError:
+            pass
+
     slider.config(command=update_value)
+    entry.bind('<KeyRelease>', update_slider)
 
     # 说明文本
     explanation = tk.Label(
         top,
         text="1. 较小的值会减少数据量，加快处理速度，但可能丢失细节。\n"
-        "2. 较大的值会保留更多细节，但可能会降低性能。\n"
+        "2. 较大的值会保留更多细节，但可能会降低性能，处理时间较慢。\n"
         "3. 对于高分辨率图像或大区域，可能需要更大的值。\n"
-        "4. 更改后将应用于新生成的图表。",
+        "4. 更改后将应用于新生成的图表，不会影响已生成的图表。",
         justify=tk.CENTER,
     )
     explanation.pack(pady=10)
 
-    # 确认按钮
+    # 确认函数
     def on_confirm():
         global MAX_POINTS
-        MAX_POINTS = slider.get()
-        set_max_points_num_button.config(text=f"Set Max Points ({MAX_POINTS})")
-        top.destroy()
+        try:
+            value = int(entry.get())
+            if 10 <= value <= 100000:
+                MAX_POINTS = value
+                set_max_points_num_button.config(text=f"Set Max Points ({MAX_POINTS})")
+                top.destroy()
+            else:
+                messagebox.showerror("Error", "Please enter a value between 10 and 100000.")
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a valid integer.")
 
+    # 确认按钮
     confirm_button = tk.Button(top, text="Confirm", command=on_confirm)
     confirm_button.pack(pady=10)
+
+    # 绑定回车键到确认函数
+    entry.bind('<Return>', lambda event: on_confirm())
+
+    # 设置焦点到输入框
+    entry.focus_set()
 
 
 def select_image():
