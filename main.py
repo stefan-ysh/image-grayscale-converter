@@ -671,6 +671,12 @@ def export_data_to_excel():
                 # 设置x轴的最大值为实际的点数
                 chart.x_axis.scaling.max = max_points
 
+                # 设置线条
+                s = chart.series[0]
+                s.graphicalProperties.line.solidFill = "0000FF"
+                # s.graphicalProperties.line.dashStyle = "sysDot"
+                s.graphicalProperties.line.width = 4800
+
                 worksheet.add_chart(chart, "F2")
 
         return True
