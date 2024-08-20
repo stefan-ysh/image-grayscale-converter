@@ -690,11 +690,11 @@ save_chart_button = tk.Button(root, padx=10, text="Save Chart Image", command=la
 export_button = tk.Button(root, padx=10, text="Export Data to Excel", command=export_data_to_excel, font=button_font)
 save_gray_image_button = tk.Button(root, padx=10, text="Save Gray Image", command=lambda: image_processor.save_gray_img(cv2, gray_img, rectangles, show_progress_bar), font=button_font)
 
-select_button.grid(row=0, column=0, sticky="ew")
-set_max_points_num_button.grid(row=0, column=1, sticky="ew")
-save_chart_button.grid(row=0, column=2, sticky="ew")
-save_gray_image_button.grid(row=0, column=4, sticky="ew")
-export_button.grid(row=0, column=3, sticky="ew")
+select_button.grid(row=0, column=0, sticky="ew", padx=20, pady=20)
+set_max_points_num_button.grid(row=0, column=1, sticky="ew", padx=20, pady=20)
+save_chart_button.grid(row=0, column=2, sticky="ew", padx=20, pady=20)
+save_gray_image_button.grid(row=0, column=4, sticky="ew", padx=20, pady=20)
+export_button.grid(row=0, column=3, sticky="ew", padx=20, pady=20)
 
 
 def create_plot_canvas():
