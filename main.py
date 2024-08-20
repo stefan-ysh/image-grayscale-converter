@@ -98,7 +98,7 @@ root.withdraw()  # Hide the main window initially
 show_loading_screen()  # Show loading screen
 
 root.deiconify()  # Show the main window after loading
-root.title("Image Grayscale Chart Generator")
+root.title("GrayScale Analyzer")
 # todo set the window icon
 # root.iconbitmap("logo.ico")
 pixel_data_with_coordinates = []
