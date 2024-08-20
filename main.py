@@ -483,18 +483,36 @@ def set_max_points():
     global MAX_POINTS
 
     # 创建一个新的顶层窗口
-    top = tk.Toplevel(root)
-    top.title("Set Max Points")
+    top = tk.Toplevel(root, padx=100)
+    top.title("")
+
+    # 不显示最小化和最大化按钮
+    top.attributes("-toolwindow", 1)
+    top.resizable(False, False)
+
+    # 最上层且禁止与其他窗口交互
+    top.attributes("-topmost", True)
+    top.grab_set()
+
+    top.overrideredirect(True)
+
+    # 更新窗口大小并居中显示
+    top.update_idletasks()
+    width = top.winfo_width()
+    height = top.winfo_height()
+    x = (root.winfo_width() - width) // 2 + root.winfo_x()
+    y = (root.winfo_height() - height) // 2 + root.winfo_y()
+    top.geometry(f'+{x}+{y}')
 
     # 创建并放置滑动条
     slider = Scale(
-        top, from_=10, to=100000, orient="horizontal", length=300, label="Max Points"
+        top, from_=10, to=100000, orient="horizontal", length=400, label="Max Points", font=200
     )
     slider.set(MAX_POINTS)
     slider.pack(pady=20)
 
     # 创建输入框
-    entry = Entry(top)
+    entry = Entry(top, font=300)
     entry.insert(0, str(MAX_POINTS))
     entry.pack(pady=10)
 
@@ -521,7 +539,8 @@ def set_max_points():
         "2. 较大的值会保留更多细节，但可能会降低性能，处理时间较慢。\n"
         "3. 对于高分辨率图像或大区域，可能需要更大的值。\n"
         "4. 更改后将应用于新生成的图表，不会影响已生成的图表。",
-        justify=tk.CENTER,
+        justify=tk.LEFT,
+        font=300,
     )
     explanation.pack(pady=10)
 
@@ -539,9 +558,15 @@ def set_max_points():
         except ValueError:
             messagebox.showerror("Error", "Please enter a valid integer.")
 
-    # 确认按钮
-    confirm_button = tk.Button(top, text="Confirm", command=on_confirm)
-    confirm_button.pack(pady=10)
+    # Create a frame to hold the buttons
+    button_frame = tk.Frame(top)
+    button_frame.pack(pady=10)
+    # Cancel button
+    cancel_button = tk.Button(button_frame, text="Cancel", command=top.destroy, font=300)
+    cancel_button.pack(side=tk.LEFT, padx=5)
+    # Confirm button
+    confirm_button = tk.Button(button_frame, text="Confirm", command=on_confirm, font=300)
+    confirm_button.pack(side=tk.LEFT, padx=5)
 
     # 绑定回车键到确认函数
     entry.bind('<Return>', lambda event: on_confirm())
