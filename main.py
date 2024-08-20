@@ -1,7 +1,9 @@
 # -- coding: UTF-8 --
+import threading
 import cv2
 import tkinter as tk
-from tkinter import filedialog, simpledialog, Menu, Scale, Entry
+from tkinter import filedialog, simpledialog, Menu, Scale, Entry, ttk
+from tkinter import font as tkfont
 import matplotlib.pyplot as plt
 from openpyxl import load_workbook
 from openpyxl.chart import LineChart, Reference
@@ -9,10 +11,47 @@ import pandas as pd
 from datetime import datetime
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import messagebox
-from image_processor import ImageProcessor
 import numpy as np
 import time
 
+# show progress bar
+def show_progress_bar(title, task_function, *args):
+    progress_window = tk.Toplevel()
+    progress_window.title(title)
+    progress_window.geometry("300x100")
+    progress_window.resizable(False, False)
+    progress_window.attributes("-toolwindow", 1)
+    progress_window.overrideredirect(True)
+    progress_window.protocol("WM_DELETE_WINDOW", lambda: None)
+
+    # Center the window
+    x = (progress_window.winfo_screenwidth() - 300) // 2
+    y = (progress_window.winfo_screenheight() - 100) // 2
+    progress_window.geometry(f"300x100+{x}+{y}")
+
+    tk.Label(progress_window, text="Processing...", font=("Arial", 16)).pack(pady=10)
+    progress_window.grab_set()
+
+    progress_bar = ttk.Progressbar(progress_window, length=200, mode="indeterminate")
+    progress_bar.pack(pady=10)
+    progress_bar.start()
+
+    result = None
+
+    def run_task():
+        nonlocal result
+        result = task_function(*args)
+        progress_window.quit()
+
+    threading.Thread(target=run_task, daemon=True).start()
+
+    progress_window.mainloop()
+    progress_window.destroy()
+    return result
+
+def get_image_processor():
+    from image_processor import ImageProcessor
+    return ImageProcessor(img, plt, show_progress_bar)
 
 # show loading screen when the program is launching
 def show_loading_screen():
@@ -94,7 +133,8 @@ circle_radius = 5
 highlight_color = (0, 255, 0)
 MIN_RECT_WIDTH = 20
 MIN_RECT_HEIGHT = 20
-
+# Define a standard button font
+button_font = tkfont.Font(size=15)
 
 # convert hex color to bgr
 def hex_to_bgr(hex_color):
@@ -387,7 +427,7 @@ def update_plot():
             "Please select an image \n to generate a grayscale chart",
             ha="center",
             va="center",
-            fontsize=14,
+            fontsize=20,
         )
         plt.axis("off")
     else:
@@ -488,7 +528,7 @@ def set_max_points():
 
 
 def select_image():
-    global img, gray_img, pixel_data_with_coordinates, mouse_coordinates, rectangles, lines, rect_start, rect_end, line_start
+    global img, gray_img, pixel_data_with_coordinates, mouse_coordinates, rectangles, lines, rect_start, rect_end, line_start, image_processor
     filename = filedialog.askopenfilename(
         title="Select image file",
         filetypes=(("Image files", "*.jpg *.jpeg *.png *.bmp"), ("All files", "*.*")),
@@ -517,6 +557,8 @@ def select_image():
     cv2.namedWindow("Gray Image", cv2.WINDOW_NORMAL)
     cv2.setMouseCallback("Gray Image", mouse_callback)
 
+    # 在这里初始化 ImageProcessor
+    image_processor = get_image_processor()
 
 def export_data_to_excel():
     if img is None:
@@ -534,83 +576,77 @@ def export_data_to_excel():
     if not filename:
         return
 
-    with pd.ExcelWriter(filename, engine="openpyxl") as writer:
-        for idx, (start, end, name, max_points) in enumerate(rectangles):
-            x1, y1 = start
-            x2, y2 = end
-            x1, x2 = sorted(
-                [max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))]
-            )
-            y1, y2 = sorted(
-                [max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))]
-            )
-            rect_pixels = gray_img[y1:y2, x1:x2].flatten()
+    def export_task():
+        with pd.ExcelWriter(filename, engine="openpyxl") as writer:
+            for idx, (start, end, name, max_points) in enumerate(rectangles):
+                x1, y1 = start
+                x2, y2 = end
+                x1, x2 = sorted(
+                    [max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))]
+                )
+                y1, y2 = sorted(
+                    [max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))]
+                )
+                rect_pixels = gray_img[y1:y2, x1:x2].flatten()
 
-            total_points = len(rect_pixels)
-            if total_points > max_points:
-                indices = np.linspace(0, total_points - 1, max_points, dtype=int)
-                rect_pixels = rect_pixels[indices]
-            else:
-                indices = np.arange(total_points)
-                max_points = total_points  # 更新max_points为实际点数
+                total_points = len(rect_pixels)
+                if total_points > max_points:
+                    indices = np.linspace(0, total_points - 1, max_points, dtype=int)
+                    rect_pixels = rect_pixels[indices]
+                else:
+                    indices = np.arange(total_points)
+                    max_points = total_points  # 更新max_points为实际点数
 
-            data = []
-            for i, (index, gray_value) in enumerate(zip(indices, rect_pixels)):
-                x_coord = x1 + (index % (x2 - x1))
-                y_coord = gray_img.shape[0] - (y1 + (index // (x2 - x1))) - 1
-                data.append([i + 1, gray_value, x_coord, y_coord])
+                data = []
+                for i, (index, gray_value) in enumerate(zip(indices, rect_pixels)):
+                    x_coord = x1 + (index % (x2 - x1))
+                    y_coord = gray_img.shape[0] - (y1 + (index // (x2 - x1))) - 1
+                    data.append([i + 1, gray_value, x_coord, y_coord])
 
-            df = pd.DataFrame(data, columns=["Index", "Gray", "X", "Y"])
-            sheet_name = f"Chart_{idx + 1}"
+                df = pd.DataFrame(data, columns=["Index", "Gray", "X", "Y"])
+                sheet_name = f"Chart_{idx + 1}"
 
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
 
-            # 在这里创建和添加图表
-            worksheet = writer.sheets[sheet_name]
+                # 在这里创建和添加图表
+                worksheet = writer.sheets[sheet_name]
 
-            chart = LineChart()
-            chart.title = f"Gray Value vs Index - {name}"
-            chart.style = 13
-            chart.x_axis.title = "Index"
-            chart.y_axis.title = "Gray Value"
+                chart = LineChart()
+                chart.title = f"Gray Value vs Index - {name}"
+                chart.style = 13
+                chart.x_axis.title = "Index"
+                chart.y_axis.title = "Gray Value"
 
-            data = Reference(worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1)
-            categories = Reference(worksheet, min_col=1, min_row=2, max_row=len(df) + 1)
+                data = Reference(worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1)
+                categories = Reference(worksheet, min_col=1, min_row=2, max_row=len(df) + 1)
 
-            chart.add_data(data, titles_from_data=True)
-            chart.set_categories(categories)
+                chart.add_data(data, titles_from_data=True)
+                chart.set_categories(categories)
 
-            # 设置x轴的最大值为实际的点数
-            chart.x_axis.scaling.max = max_points
+                # 设置x轴的最大值为实际的点数
+                chart.x_axis.scaling.max = max_points
 
-            worksheet.add_chart(chart, "F2")
+                worksheet.add_chart(chart, "F2")
 
-    messagebox.showinfo("Success", "Data exported and charts added successfully!")
+        return True
 
+    result = show_progress_bar("Exporting Data", export_task)
+    
+    if result:
+        messagebox.showinfo("Success", "Data exported and charts added successfully!")
+    else:
+        messagebox.showerror("Error", "Failed to export data.")
 
-select_button = tk.Button(root, text="Select Image", command=select_image)
+# 主窗口按钮设置
+select_button = tk.Button(root, padx=10, text="Select Image", command=select_image, font=button_font)
+set_max_points_num_button = tk.Button(root, padx=10, text=f"Set Max Points ({MAX_POINTS})", command=set_max_points, font=button_font)
+save_chart_button = tk.Button(root, padx=10, text="Save Chart Image", command=lambda: image_processor.save_plot_image() if image_processor else None, font=button_font)
+export_button = tk.Button(root, padx=10, text="Export Data to Excel", command=export_data_to_excel, font=button_font)
+save_gray_image_button = tk.Button(root, padx=10, text="Save Gray Image", command=lambda: image_processor.save_gray_img(cv2, gray_img, rectangles, show_progress_bar), font=button_font)
+
 select_button.grid(row=0, column=0, sticky="ew")
-
-set_max_points_num_button = tk.Button(
-    root, text=f"Set Max Points ({MAX_POINTS})", command=set_max_points
-)
 set_max_points_num_button.grid(row=0, column=1, sticky="ew")
-
-image_processor = ImageProcessor(img, plt)
-
-save_chart_button = tk.Button(
-    root,
-    text="Save Chart Image",
-    command=lambda: image_processor.save_plot_image(img, plt),
-)
 save_chart_button.grid(row=0, column=2, sticky="ew")
-
-export_button = tk.Button(
-    root, text="Export Data to Excel", command=export_data_to_excel
-)
-
-save_gray_image_button = tk.Button(root, text="Save Gray Image", command=lambda: image_processor.save_gray_img(cv2, gray_img, rectangles))
-
 save_gray_image_button.grid(row=0, column=4, sticky="ew")
 export_button.grid(row=0, column=3, sticky="ew")
 
