@@ -2,10 +2,9 @@
 import threading
 import cv2
 import tkinter as tk
-from tkinter import filedialog, simpledialog, Menu, Scale, Entry, ttk
+from tkinter import filedialog, Menu, Scale, Entry, ttk
 from tkinter import font as tkfont
 import matplotlib.pyplot as plt
-from openpyxl import load_workbook
 from openpyxl.chart import LineChart, Reference
 import pandas as pd
 from datetime import datetime
