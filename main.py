@@ -496,14 +496,6 @@ def set_max_points():
 
     top.overrideredirect(True)
 
-    # 更新窗口大小并居中显示
-    top.update_idletasks()
-    width = top.winfo_width()
-    height = top.winfo_height()
-    x = (root.winfo_width() - width) // 2 + root.winfo_x()
-    y = (root.winfo_height() - height) // 2 + root.winfo_y()
-    top.geometry(f'+{x}+{y}')
-
     # 创建并放置滑动条
     slider = Scale(
         top, from_=10, to=100000, orient="horizontal", length=400, label="Max Points", font=200
@@ -573,7 +565,13 @@ def set_max_points():
 
     # 设置焦点到输入框
     entry.focus_set()
-
+    # 更新窗口大小并居中显示
+    top.update_idletasks()
+    width = top.winfo_width()
+    height = top.winfo_height()
+    x = (root.winfo_width() - width) // 2 + root.winfo_x()
+    y = (root.winfo_height() - height) // 2 + root.winfo_y()
+    top.geometry(f'+{x}+{y}')
 
 def select_image():
     global img, gray_img, pixel_data_with_coordinates, mouse_coordinates, rectangles, lines, rect_start, rect_end, line_start, image_processor
