@@ -472,7 +472,7 @@ def update_plot():
             ax.plot(x_data, y_data, marker="", linewidth=line_width, color=line_color)
             ax.set_title(f"{name} (Points: {max_points})")
             ax.set_xlabel("Pixel Index")
-            ax.set_ylabel("Gray Value")
+            ax.set_ylabel("Grayscale Value")
 
     plt.tight_layout()
     canvas.draw()
@@ -648,7 +648,7 @@ def export_data_to_excel():
                     y_coord = gray_img.shape[0] - (y1 + (index // (x2 - x1))) - 1
                     data.append([i + 1, gray_value, x_coord, y_coord])
 
-                df = pd.DataFrame(data, columns=["Index", "Gray", "X", "Y"])
+                df = pd.DataFrame(data, columns=["Index", "Grayscale", "X", "Y"])
                 sheet_name = f"Chart_{idx + 1}"
 
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -657,10 +657,10 @@ def export_data_to_excel():
                 worksheet = writer.sheets[sheet_name]
 
                 chart = LineChart()
-                chart.title = f"Gray Value vs Index - {name}"
+                chart.title = f"Grayscale Value vs Index - {name}"
                 chart.style = 13
                 chart.x_axis.title = "Index"
-                chart.y_axis.title = "Gray Value"
+                chart.y_axis.title = "Grayscale Value"
 
                 data = Reference(worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1)
                 categories = Reference(worksheet, min_col=1, min_row=2, max_row=len(df) + 1)
