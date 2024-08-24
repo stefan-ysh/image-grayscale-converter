@@ -11,7 +11,6 @@ from datetime import datetime
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import messagebox
 import numpy as np
-import time
 from utils.launch_loading import show_loading_screen
 # show progress bar
 def show_progress_bar(title, task_function, *args):

@@ -4,7 +4,6 @@ import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
 import pandas as pd
 import numpy as np
-import time
 from PIL import Image, ImageTk
 import os
 import matplotlib.pyplot as plt
