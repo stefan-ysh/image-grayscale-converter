@@ -12,7 +12,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import messagebox
 import numpy as np
 import time
-
+from utils.launch_loading import show_loading_screen
 # show progress bar
 def show_progress_bar(title, task_function, *args):
     progress_window = tk.Toplevel()
@@ -49,47 +49,10 @@ def show_progress_bar(title, task_function, *args):
     return result
 
 def get_image_processor():
-    from image_processor import ImageProcessor
+    from utils.image_processor import ImageProcessor
     return ImageProcessor(img, plt, show_progress_bar)
 
 # show loading screen when the program is launching
-def show_loading_screen():
-    loading_window = tk.Toplevel()
-    loading_window.title("")
-    loading_window.geometry("300x100")
-    loading_window.resizable(False, False)
-    # Disable window minimization
-    loading_window.attributes("-toolwindow", 1)
-
-    # Disable window closing
-    loading_window.protocol("WM_DELETE_WINDOW", lambda: None)
-
-    # Remove the close button
-    loading_window.overrideredirect(True)
-
-    # Center the loading window on the screen
-    screen_width = loading_window.winfo_screenwidth()
-    screen_height = loading_window.winfo_screenheight()
-    x = (screen_width - 300) // 2
-    y = (screen_height - 100) // 2
-    loading_window.geometry(f"300x100+{x}+{y}")
-    loading_label = tk.Label(loading_window, text="launching...", font=("Arial", 16))
-    loading_label.pack(pady=20)
-
-    progress_bar = tk.Canvas(loading_window, width=200, height=20)
-    progress_bar.pack()
-
-    # 使用更多的步骤来实现更平滑的动画
-    steps = 200
-    for i in range(steps):
-        progress_bar.delete("all")  # 清除之前的进度
-        width = (i + 1) * 200 / steps
-        progress_bar.create_rectangle(0, 0, width, 20, fill="blue", outline="")
-        loading_window.update()
-        time.sleep(0.01)  # 减少每步的延迟，使动画更流畅
-
-    loading_window.destroy()
-
 
 root = tk.Tk()
 root.withdraw()  # Hide the main window initially
