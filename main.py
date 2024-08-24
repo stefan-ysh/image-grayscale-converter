@@ -231,7 +231,7 @@ def mouse_callback(event, x, y, flags, param):
                                 rect_start,
                                 rect_end,
                                 rectangle_name,
-                                MAX_POINTS,
+                                0 if MAX_POINTS == 0 else MAX_POINTS,
                             )
                         )
                         update_display_image()
@@ -275,11 +275,18 @@ def edit_rectangle_points(rect_index):
     top = tk.Toplevel(root)
     top.title(f"Edit Points for {name}")
 
+    # 计算实际点数
+    x1, y1 = start
+    x2, y2 = end
+    x1, x2 = sorted([max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))])
+    y1, y2 = sorted([max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))])
+    actual_points = (x2 - x1) * (y2 - y1)
+
     # 创建并放置滑动条
     slider = Scale(
         top,
         from_=10,
-        to=100000,
+        to=max(100000, actual_points),
         orient="horizontal",
         length=300,
         label="Number of Points",
@@ -292,30 +299,54 @@ def edit_rectangle_points(rect_index):
     entry.insert(0, str(max_points))
     entry.pack(pady=10)
 
+    # 创建复选框
+    use_actual_points = tk.BooleanVar()
+    use_actual_points_checkbox = tk.Checkbutton(top, text="Use actual points", variable=use_actual_points)
+    use_actual_points_checkbox.pack(pady=10)
+
     # 更新函数
     def update_value(val):
-        entry.delete(0, tk.END)
-        entry.insert(0, val)
+        if not use_actual_points.get():
+            entry.delete(0, tk.END)
+            entry.insert(0, val)
 
     slider.config(command=update_value)
 
     # 确认按钮
     def on_confirm():
         try:
-            new_max_points = int(entry.get())
-            if 10 <= new_max_points <= 100000:
+            if use_actual_points.get():
+                new_max_points = actual_points
+            else:
+                new_max_points = int(entry.get())
+            
+            if 10 <= new_max_points <= max(100000, actual_points):
                 rectangles[rect_index] = (start, end, name, new_max_points)
                 update_plot()
                 top.destroy()
             else:
                 messagebox.showerror(
-                    "Error", "Please enter a value between 10 and 100000."
+                    "Error", f"Please enter a value between 10 and {max(100000, actual_points)}."
                 )
         except ValueError:
             messagebox.showerror("Error", "Please enter a valid integer.")
 
     confirm_button = tk.Button(top, text="Confirm", command=on_confirm)
     confirm_button.pack(pady=10)
+
+    # 更新复选框状态时的回调函数
+    def update_checkbox_state():
+        if use_actual_points.get():
+            slider.set(actual_points)
+            entry.delete(0, tk.END)
+            entry.insert(0, str(actual_points))
+            slider.config(state=tk.DISABLED)
+            entry.config(state=tk.DISABLED)
+        else:
+            slider.config(state=tk.NORMAL)
+            entry.config(state=tk.NORMAL)
+
+    use_actual_points_checkbox.config(command=update_checkbox_state)
 
 
 def is_point_in_rect(x, y, start, end):
@@ -446,14 +477,14 @@ def update_plot():
 
             rect_pixels = gray_img[y1:y2, x1:x2].flatten()
 
-            if len(rect_pixels) > max_points:
+            if max_points == 0 or len(rect_pixels) <= max_points:
+                max_points = len(rect_pixels)
+            else:
                 indices = np.linspace(0, len(rect_pixels) - 1, max_points, dtype=int)
                 rect_pixels = rect_pixels[indices]
-            elif len(rect_pixels) < max_points:
-                # 如果像素数量不足，使用真是像素数量
-                max_points = len(rect_pixels)
-                # 同步更新 rectangles 中的 max_points
-                rectangles[idx] = (start, end, name, max_points)
+
+            # 同步更新 rectangles 中的 max_points
+            rectangles[idx] = (start, end, name, max_points)
 
             rect_data = [
                 (i + 1, gray_value) for i, gray_value in enumerate(rect_pixels)
@@ -507,10 +538,16 @@ def set_max_points():
     entry.insert(0, str(MAX_POINTS))
     entry.pack(pady=10)
 
+    # 创建复选框
+    use_actual_points = tk.BooleanVar()
+    use_actual_points_checkbox = tk.Checkbutton(top, text="Use actual points", variable=use_actual_points)
+    use_actual_points_checkbox.pack(pady=10)
+
     # 更新函数
     def update_value(val):
-        entry.delete(0, tk.END)
-        entry.insert(0, val)
+        if not use_actual_points.get():
+            entry.delete(0, tk.END)
+            entry.insert(0, val)
 
     def update_slider(event):
         try:
@@ -529,7 +566,8 @@ def set_max_points():
         text="1. 较小的值会减少数据量，加快处理速度，但可能丢失细节。\n"
         "2. 较大的值会保留更多细节，但可能会降低性能，处理时间较慢。\n"
         "3. 对于高分辨率图像或大区域，可能需要更大的值。\n"
-        "4. 更改后将应用于新生成的图表，不会影响已生成的图表。",
+        "4. 更改后将应用于新生成的图表，不会影响已生成的图表。\n"
+        "5. 选择'Use actual points'将使用矩形区域内的所有点。",
         justify=tk.LEFT,
         font=300,
     )
@@ -539,13 +577,17 @@ def set_max_points():
     def on_confirm():
         global MAX_POINTS
         try:
-            value = int(entry.get())
-            if 10 <= value <= 100000:
-                MAX_POINTS = value
-                set_max_points_num_button.config(text=f"Set Max Points ({MAX_POINTS})")
-                top.destroy()
+            if use_actual_points.get():
+                MAX_POINTS = 0  # 使用0表示使用实际点数
             else:
-                messagebox.showerror("Error", "Please enter a value between 10 and 100000.")
+                value = int(entry.get())
+                if 10 <= value <= 100000:
+                    MAX_POINTS = value
+                else:
+                    messagebox.showerror("Error", "Please enter a value between 10 and 100000.")
+                    return
+            set_max_points_num_button.config(text=f"Set Max Points ({'Actual' if MAX_POINTS == 0 else MAX_POINTS})")
+            top.destroy()
         except ValueError:
             messagebox.showerror("Error", "Please enter a valid integer.")
 
@@ -561,6 +603,23 @@ def set_max_points():
 
     # 绑定回车键到确认函数
     entry.bind('<Return>', lambda event: on_confirm())
+    top.bind('<Return>', lambda event: on_confirm())
+
+    # 更新复选框状态时的回调函数
+    def update_checkbox_state():
+        if use_actual_points.get():
+            slider.set(10)
+            entry.delete(0, tk.END)
+            entry.insert(0, "Actual")
+            slider.config(state=tk.DISABLED)
+            entry.config(state=tk.DISABLED)
+        else:
+            slider.config(state=tk.NORMAL)
+            entry.config(state=tk.NORMAL)
+            entry.delete(0, tk.END)
+            entry.insert(0, str(slider.get()))
+
+    use_actual_points_checkbox.config(command=update_checkbox_state)
 
     # 设置焦点到输入框
     entry.focus_set()
