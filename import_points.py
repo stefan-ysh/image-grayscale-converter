@@ -8,6 +8,7 @@ import time
 from PIL import Image, ImageTk
 import os
 import matplotlib.pyplot as plt
+from utils.launch_loading import show_loading_screen
 
 def show_progress_bar(title, task_function, *args):
     progress_window = tk.Toplevel()
@@ -42,35 +43,7 @@ def show_progress_bar(title, task_function, *args):
     progress_window.destroy()
     return result
 
-def show_loading_screen():
-    loading_window = tk.Toplevel()
-    loading_window.title("")
-    loading_window.geometry("300x100")
-    loading_window.resizable(False, False)
-    loading_window.attributes("-toolwindow", 1)
-    loading_window.protocol("WM_DELETE_WINDOW", lambda: None)
-    loading_window.overrideredirect(True)
 
-    screen_width = loading_window.winfo_screenwidth()
-    screen_height = loading_window.winfo_screenheight()
-    x = (screen_width - 300) // 2
-    y = (screen_height - 100) // 2
-    loading_window.geometry(f"300x100+{x}+{y}")
-    
-    tk.Label(loading_window, text="Launching...", font=("Arial", 16)).pack(pady=20)
-
-    progress_bar = tk.Canvas(loading_window, width=200, height=20)
-    progress_bar.pack()
-
-    steps = 200
-    for i in range(steps):
-        progress_bar.delete("all")
-        width = (i + 1) * 200 / steps
-        progress_bar.create_rectangle(0, 0, width, 20, fill="blue", outline="")
-        loading_window.update()
-        time.sleep(0.01)
-
-    loading_window.destroy()
 
 def import_task(progress_label, progress_bar, filename, file_index, total_files):
     if filename.endswith('.csv'):
