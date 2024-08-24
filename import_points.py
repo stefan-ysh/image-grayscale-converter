@@ -104,15 +104,20 @@ def import_and_draw_image():
     try:
         imported_img = show_progress_bar("Importing Data", import_task, filename)
         show_scaled_image(imported_img)
-        messagebox.showinfo("Success", "Image imported and drawn successfully!")
     except Exception as e:
         messagebox.showerror("Error", f"Failed to import data: {str(e)}")
+
 
 def show_scaled_image(img):
     cv2.namedWindow("Imported Image", cv2.WINDOW_NORMAL)
     cv2.imshow("Imported Image", img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    
+    def close_window():
+        cv2.destroyAllWindows()
+        root.quit()
+    
+    root.after(100, lambda: root.bind('<Key>', lambda e: close_window()))
+    root.mainloop()
 
 root = tk.Tk()
 root.withdraw()
