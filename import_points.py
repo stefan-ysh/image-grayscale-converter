@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import time
 from PIL import Image, ImageTk
+import os
 
 def show_progress_bar(title, task_function, *args):
     progress_window = tk.Toplevel()
@@ -86,7 +87,7 @@ def import_task(progress_label, progress_bar, filename, file_index, total_files)
     min_x, max_x = df['X'].min().astype(int), df['X'].max().astype(int)
     min_y, max_y = df['Y'].min().astype(int), df['Y'].max().astype(int)
     
-    img = np.zeros((max_y - min_y + 1, max_x - min_x + 1), dtype=np.uint8)
+    img = np.zeros((max(max_y - min_y + 1, 1), max(max_x - min_x + 1, 1)), dtype=np.uint8)
 
     total_rows = len(df)
     for index, row in df.iterrows():
@@ -114,7 +115,7 @@ def import_and_draw_images():
         total_files = len(filenames)
         for i, filename in enumerate(filenames, 1):
             imported_img = show_progress_bar(f"Importing Data", import_task, filename, i, total_files)
-            images.append(imported_img)
+            images.append((imported_img, os.path.basename(filename)))
         show_images(images)
     except Exception as e:
         messagebox.showerror("Error", f"Failed to import data: {str(e)}")
@@ -123,20 +124,57 @@ def show_images(images):
     for widget in image_frame.winfo_children():
         widget.destroy()
 
-    frame_width = image_frame.winfo_width()
-    img_width = frame_width // 2 - 10  # 10 pixels for padding
-
-    for i, img in enumerate(images):
-        pil_img = Image.fromarray(img)
-        pil_img.thumbnail((img_width, img_width))  # Resize image to fit half the frame width
-        tk_img = ImageTk.PhotoImage(pil_img)
+    def update_images(event=None):
+        frame_width = max(image_frame.winfo_width(), 1)
+        frame_height = max(image_frame.winfo_height(), 1)
         
-        label = tk.Label(image_frame, image=tk_img)
-        label.image = tk_img  # Keep a reference
-        label.grid(row=i//2, column=i%2, padx=5, pady=5)
+        # Calculate the number of rows and columns
+        num_images = len(images)
+        num_cols = min(3, num_images)  # Maximum 3 columns
+        num_rows = (num_images + num_cols - 1) // num_cols
+
+        # Calculate the maximum size for each image
+        img_width = max(frame_width // num_cols - 20, 1)  # 20 pixels for padding
+        img_height = max(frame_height // num_rows - 20, 1)  # 20 pixels for padding
+
+        for i, (img, filename) in enumerate(images):
+            pil_img = Image.fromarray(img)
+            # Calculate the scaling factor to fit within the available space while maintaining aspect ratio
+            width_ratio = img_width / pil_img.width
+            height_ratio = img_height / pil_img.height
+            scale_factor = min(width_ratio, height_ratio)
+            
+            new_size = (int(pil_img.width * scale_factor), int(pil_img.height * scale_factor))
+            pil_img = pil_img.resize(new_size, Image.LANCZOS)
+            tk_img = ImageTk.PhotoImage(pil_img)
+            
+            frame = tk.Frame(image_frame, borderwidth=2, relief="solid")  # Add border to the frame
+            frame.grid(row=i//num_cols, column=i%num_cols, padx=10, pady=10, sticky="nsew")
+            
+            label = tk.Label(frame, image=tk_img)
+            label.image = tk_img  # Keep a reference
+            label.pack()
+            
+            filename_label = tk.Label(frame, text=filename, wraplength=img_width)
+            filename_label.pack()
+
+        # Configure grid to center the images
+        for i in range(num_cols):
+            image_frame.grid_columnconfigure(i, weight=1)
+        for i in range(num_rows):
+            image_frame.grid_rowconfigure(i, weight=1)
+
+    update_images()
+    image_frame.bind("<Configure>", update_images)
 
 root = tk.Tk()
-root.title("Import and Draw Images")
+root.withdraw()  # Hide the main window initially
+
+show_loading_screen()  # Show loading screen
+
+root.deiconify()  # Show the main window after loading screen
+
+root.title("Images")
 
 import_button = tk.Button(root, text="Import Data", command=import_and_draw_images)
 import_button.pack(pady=20)
@@ -144,4 +182,91 @@ import_button.pack(pady=20)
 image_frame = tk.Frame(root)
 image_frame.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
 
+# Bind the root window's <Configure> event to update images
+def update_root_images(event=None):
+    # Only update if the image_frame has been created and has children
+    if 'image_frame' in globals() and image_frame.winfo_children():
+        frame_width = max(image_frame.winfo_width(), 1)
+        frame_height = max(image_frame.winfo_height(), 1)
+        
+        num_images = len(image_frame.winfo_children())
+        num_cols = min(3, num_images)  # Maximum 3 columns
+        num_rows = (num_images + num_cols - 1) // num_cols
+
+        max_img_width = max(frame_width // num_cols - 20, 1)  # 20 pixels for padding
+        max_img_height = max(frame_height // num_rows - 20, 1)  # 20 pixels for padding
+
+        for frame in image_frame.winfo_children():
+            if isinstance(frame, tk.Frame):
+                for widget in frame.winfo_children():
+                    if isinstance(widget, tk.Label) and hasattr(widget, 'original_image'):
+                        pil_img = widget.original_image.copy()
+                        # Calculate the scaling factor to fit within the available space while maintaining aspect ratio
+                        width_ratio = max_img_width / pil_img.width
+                        height_ratio = max_img_height / pil_img.height
+                        scale_factor = min(width_ratio, height_ratio)
+                        
+                        new_size = (int(pil_img.width * scale_factor), int(pil_img.height * scale_factor))
+                        pil_img = pil_img.resize(new_size, Image.LANCZOS)
+                        tk_img = ImageTk.PhotoImage(pil_img)
+                        widget.configure(image=tk_img)
+                        widget.image = tk_img  # Keep a reference
+
+root.bind("<Configure>", update_root_images)
+
+# Modify show_images function to store original images
+def show_images(images):
+    for widget in image_frame.winfo_children():
+        widget.destroy()
+
+    frame_width = max(image_frame.winfo_width(), 1)
+    frame_height = max(image_frame.winfo_height(), 1)
+    
+    num_images = len(images)
+    num_cols = min(3, num_images)  # Maximum 3 columns
+    num_rows = (num_images + num_cols - 1) // num_cols
+
+    max_img_width = max(frame_width // num_cols - 20, 1)  # 20 pixels for padding
+    max_img_height = max(frame_height // num_rows - 20, 1)  # 20 pixels for padding
+
+    for i, (img, filename) in enumerate(images):
+        pil_img = Image.fromarray(img)
+        original_pil_img = pil_img.copy()  # Store the original image
+        
+        # Calculate the scaling factor to fit within the available space while maintaining aspect ratio
+        width_ratio = max_img_width / pil_img.width
+        height_ratio = max_img_height / pil_img.height
+        scale_factor = min(width_ratio, height_ratio)
+        
+        new_size = (int(pil_img.width * scale_factor), int(pil_img.height * scale_factor))
+        pil_img = pil_img.resize(new_size, Image.LANCZOS)
+        tk_img = ImageTk.PhotoImage(pil_img)
+        
+        frame = tk.Frame(image_frame, borderwidth=1, relief="solid")  # Add border to the frame
+        frame.grid(row=i//num_cols, column=i%num_cols, padx=10, pady=10, sticky="nsew")
+        
+        label = tk.Label(frame, image=tk_img)
+        label.image = tk_img  # Keep a reference
+        label.original_image = original_pil_img  # Store the original image
+        label.pack()
+        
+        filename_label = tk.Label(frame, text=filename, wraplength=max_img_width)
+        filename_label.pack()
+
+    # Configure grid to center the images
+    for i in range(num_cols):
+        image_frame.grid_columnconfigure(i, weight=1)
+    for i in range(num_rows):
+        image_frame.grid_rowconfigure(i, weight=1)
+
+# root 宽高设置
+root.minsize(600, 400)  # 设置最小宽度为600像素，最小高度为400像素
+# 居中
+screen_width = root.winfo_screenwidth()
+screen_height = root.winfo_screenheight()
+window_width = 800
+window_height = 600
+x = (screen_width - window_width) // 2
+y = (screen_height - window_height) // 2
+root.geometry(f"{window_width}x{window_height}+{x}+{y}")
 root.mainloop()
