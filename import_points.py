@@ -1,6 +1,5 @@
 # -- coding: UTF-8 --
 import threading
-import cv2
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
 import pandas as pd
@@ -8,6 +7,7 @@ import numpy as np
 import time
 from PIL import Image, ImageTk
 import os
+import matplotlib.pyplot as plt
 
 def show_progress_bar(title, task_function, *args):
     progress_window = tk.Toplevel()
@@ -124,48 +124,80 @@ def show_images(images):
     for widget in image_frame.winfo_children():
         widget.destroy()
 
-    def update_images(event=None):
-        frame_width = max(image_frame.winfo_width(), 1)
-        frame_height = max(image_frame.winfo_height(), 1)
+    frame_width = max(image_frame.winfo_width(), 1)
+    frame_height = max(image_frame.winfo_height(), 1)
+    
+    num_images = len(images)
+    num_cols = min(3, num_images)  # Maximum 3 columns
+    num_rows = (num_images + num_cols - 1) // num_cols
+
+    max_img_width = max(frame_width // num_cols - 20, 1)  # 20 pixels for padding
+    max_img_height = max(frame_height // num_rows - 40, 1)  # 40 pixels for padding and filename
+
+    for i, (img, filename) in enumerate(images):
+        pil_img = Image.fromarray(img)
+        original_pil_img = pil_img.copy()  # Store the original image
         
-        # Calculate the number of rows and columns
-        num_images = len(images)
-        num_cols = min(3, num_images)  # Maximum 3 columns
-        num_rows = (num_images + num_cols - 1) // num_cols
+        # Calculate the scaling factor to fit within the available space while maintaining aspect ratio
+        width_ratio = max_img_width / pil_img.width
+        height_ratio = max_img_height / pil_img.height
+        scale_factor = min(width_ratio, height_ratio)
+        
+        new_size = (int(pil_img.width * scale_factor), int(pil_img.height * scale_factor))
+        pil_img = pil_img.resize(new_size, Image.LANCZOS)
+        tk_img = ImageTk.PhotoImage(pil_img)
+        
+        frame = tk.Frame(image_frame, borderwidth=1, relief="solid")
+        frame.grid(row=i//num_cols, column=i%num_cols, padx=10, pady=10, sticky="nsew")
+        
+        # Create a container for the image and overlay elements
+        container = tk.Frame(frame)
+        container.pack(expand=True, fill=tk.BOTH)
+        
+        # Add the image
+        image_label = tk.Label(container, image=tk_img)
+        image_label.image = tk_img  # Keep a reference
+        image_label.original_image = original_pil_img  # Store the original image
+        image_label.place(x=0, y=0, relwidth=1, relheight=1)
+        
+        # Add filename at the top center
+        filename_label = tk.Label(container, text=filename, bg='white', fg='black')
+        filename_label.place(relx=0.5, y=0, anchor='n')
+        
+        # Add "Show 3D Plot" button to the top right corner
+        show_3d_button = tk.Button(container, text="3D", command=lambda img=img: show_3d_plot(img))
+        show_3d_button.place(relx=1, y=0, anchor='ne')
 
-        # Calculate the maximum size for each image
-        img_width = max(frame_width // num_cols - 20, 1)  # 20 pixels for padding
-        img_height = max(frame_height // num_rows - 20, 1)  # 20 pixels for padding
+    # Configure grid to center the images
+    for i in range(num_cols):
+        image_frame.grid_columnconfigure(i, weight=1)
+    for i in range(num_rows):
+        image_frame.grid_rowconfigure(i, weight=1)
 
-        for i, (img, filename) in enumerate(images):
-            pil_img = Image.fromarray(img)
-            # Calculate the scaling factor to fit within the available space while maintaining aspect ratio
-            width_ratio = img_width / pil_img.width
-            height_ratio = img_height / pil_img.height
-            scale_factor = min(width_ratio, height_ratio)
-            
-            new_size = (int(pil_img.width * scale_factor), int(pil_img.height * scale_factor))
-            pil_img = pil_img.resize(new_size, Image.LANCZOS)
-            tk_img = ImageTk.PhotoImage(pil_img)
-            
-            frame = tk.Frame(image_frame, borderwidth=2, relief="solid")  # Add border to the frame
-            frame.grid(row=i//num_cols, column=i%num_cols, padx=10, pady=10, sticky="nsew")
-            
-            label = tk.Label(frame, image=tk_img)
-            label.image = tk_img  # Keep a reference
-            label.pack()
-            
-            filename_label = tk.Label(frame, text=filename, wraplength=img_width)
-            filename_label.pack()
-
-        # Configure grid to center the images
-        for i in range(num_cols):
-            image_frame.grid_columnconfigure(i, weight=1)
-        for i in range(num_rows):
-            image_frame.grid_rowconfigure(i, weight=1)
-
-    update_images()
-    image_frame.bind("<Configure>", update_images)
+def show_3d_plot(img):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    
+    y, x = np.mgrid[0:img.shape[0], 0:img.shape[1]]
+    Z = img
+    
+    surf = ax.plot_surface(x, y, Z, cmap='gray')
+    
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Intensity')
+    ax.set_title('3D Surface Plot of Fingerprint')
+    
+    # Set the origin to bottom-left
+    ax.set_xlim(0, img.shape[1])
+    ax.set_ylim(0, img.shape[0])
+    
+    # Invert y-axis to match image coordinates
+    ax.invert_yaxis()
+    
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+    
+    plt.show()
 
 root = tk.Tk()
 root.withdraw()  # Hide the main window initially
@@ -199,65 +231,22 @@ def update_root_images(event=None):
         for frame in image_frame.winfo_children():
             if isinstance(frame, tk.Frame):
                 for widget in frame.winfo_children():
-                    if isinstance(widget, tk.Label) and hasattr(widget, 'original_image'):
-                        pil_img = widget.original_image.copy()
-                        # Calculate the scaling factor to fit within the available space while maintaining aspect ratio
-                        width_ratio = max_img_width / pil_img.width
-                        height_ratio = max_img_height / pil_img.height
-                        scale_factor = min(width_ratio, height_ratio)
-                        
-                        new_size = (int(pil_img.width * scale_factor), int(pil_img.height * scale_factor))
-                        pil_img = pil_img.resize(new_size, Image.LANCZOS)
-                        tk_img = ImageTk.PhotoImage(pil_img)
-                        widget.configure(image=tk_img)
-                        widget.image = tk_img  # Keep a reference
+                    if isinstance(widget, tk.Frame):
+                        for child in widget.winfo_children():
+                            if isinstance(child, tk.Label) and hasattr(child, 'original_image'):
+                                pil_img = child.original_image.copy()
+                                # Calculate the scaling factor to fit within the available space while maintaining aspect ratio
+                                width_ratio = max_img_width / pil_img.width
+                                height_ratio = max_img_height / pil_img.height
+                                scale_factor = min(width_ratio, height_ratio)
+                                
+                                new_size = (int(pil_img.width * scale_factor), int(pil_img.height * scale_factor))
+                                pil_img = pil_img.resize(new_size, Image.LANCZOS)
+                                tk_img = ImageTk.PhotoImage(pil_img)
+                                child.configure(image=tk_img)
+                                child.image = tk_img  # Keep a reference
 
 root.bind("<Configure>", update_root_images)
-
-# Modify show_images function to store original images
-def show_images(images):
-    for widget in image_frame.winfo_children():
-        widget.destroy()
-
-    frame_width = max(image_frame.winfo_width(), 1)
-    frame_height = max(image_frame.winfo_height(), 1)
-    
-    num_images = len(images)
-    num_cols = min(3, num_images)  # Maximum 3 columns
-    num_rows = (num_images + num_cols - 1) // num_cols
-
-    max_img_width = max(frame_width // num_cols - 20, 1)  # 20 pixels for padding
-    max_img_height = max(frame_height // num_rows - 20, 1)  # 20 pixels for padding
-
-    for i, (img, filename) in enumerate(images):
-        pil_img = Image.fromarray(img)
-        original_pil_img = pil_img.copy()  # Store the original image
-        
-        # Calculate the scaling factor to fit within the available space while maintaining aspect ratio
-        width_ratio = max_img_width / pil_img.width
-        height_ratio = max_img_height / pil_img.height
-        scale_factor = min(width_ratio, height_ratio)
-        
-        new_size = (int(pil_img.width * scale_factor), int(pil_img.height * scale_factor))
-        pil_img = pil_img.resize(new_size, Image.LANCZOS)
-        tk_img = ImageTk.PhotoImage(pil_img)
-        
-        frame = tk.Frame(image_frame, borderwidth=1, relief="solid")  # Add border to the frame
-        frame.grid(row=i//num_cols, column=i%num_cols, padx=10, pady=10, sticky="nsew")
-        
-        label = tk.Label(frame, image=tk_img)
-        label.image = tk_img  # Keep a reference
-        label.original_image = original_pil_img  # Store the original image
-        label.pack()
-        
-        filename_label = tk.Label(frame, text=filename, wraplength=max_img_width)
-        filename_label.pack()
-
-    # Configure grid to center the images
-    for i in range(num_cols):
-        image_frame.grid_columnconfigure(i, weight=1)
-    for i in range(num_rows):
-        image_frame.grid_rowconfigure(i, weight=1)
 
 # root 宽高设置
 root.minsize(600, 400)  # 设置最小宽度为600像素，最小高度为400像素
