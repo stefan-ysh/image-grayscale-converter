@@ -80,12 +80,16 @@ def import_and_draw_images():
         filetypes=(("CSV files", "*.csv"), ("Excel files", "*.xlsx"), ("All files", "*.*")),
     )
     if not filenames:
+        # messagebox.showinfo("No Files Selected", "Please select at least one file to import.")
         return
 
     try:
         images = []
         total_files = len(filenames)
         for i, filename in enumerate(filenames, 1):
+            if not (filename.endswith('.csv') or filename.endswith('.xlsx')):
+                messagebox.showerror("Invalid File Format", f"The file '{os.path.basename(filename)}' is not a supported format. Please select CSV or Excel files only.")
+                return
             imported_img = show_progress_bar(f"Importing Data", import_task, filename, i, total_files)
             images.append((imported_img, os.path.basename(filename)))
         show_images(images)
@@ -95,6 +99,12 @@ def import_and_draw_images():
 def show_images(images):
     for widget in image_frame.winfo_children():
         widget.destroy()
+
+    if not images:
+        # Display a message when no data is uploaded
+        message_label = tk.Label(image_frame, text="Please upload data to display images", font=("Arial", 16))
+        message_label.pack(expand=True)
+        return
 
     frame_width = max(image_frame.winfo_width(), 1)
     frame_height = max(image_frame.winfo_height(), 1)
@@ -186,6 +196,10 @@ import_button.pack(pady=20)
 image_frame = tk.Frame(root)
 image_frame.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
 
+# Display initial message
+initial_message = tk.Label(image_frame, text="Please upload data to display images", font=("Arial", 16))
+initial_message.pack(expand=True)
+
 # Bind the root window's <Configure> event to update images
 def update_root_images(event=None):
     # Only update if the image_frame has been created and has children
@@ -193,7 +207,10 @@ def update_root_images(event=None):
         frame_width = max(image_frame.winfo_width(), 1)
         frame_height = max(image_frame.winfo_height(), 1)
         
-        num_images = len(image_frame.winfo_children())
+        num_images = len([child for child in image_frame.winfo_children() if isinstance(child, tk.Frame)])
+        if num_images == 0:
+            return  # No images to update
+
         num_cols = min(3, num_images)  # Maximum 3 columns
         num_rows = (num_images + num_cols - 1) // num_cols
 
