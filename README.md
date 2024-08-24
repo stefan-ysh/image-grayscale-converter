@@ -31,5 +31,5 @@ MIT License
 ## Build
 
 ```
-pyinstaller --onefile --windowed --icon ./logo.ico ./main.py
+pyinstaller --onefile --windowed --icon ./logo.ico ./main.py -n Image-Grayscale-Converter
 ```
