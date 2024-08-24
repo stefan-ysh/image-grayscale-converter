@@ -6,6 +6,7 @@ from tkinter import filedialog, ttk, messagebox
 import pandas as pd
 import numpy as np
 import time
+from PIL import Image, ImageTk
 
 def show_progress_bar(title, task_function, *args):
     progress_window = tk.Toplevel()
@@ -93,39 +94,43 @@ def import_task(filename):
 
     return img
 
-def import_and_draw_image():
-    filename = filedialog.askopenfilename(
-        title="Select data file",
+def import_and_draw_images():
+    filenames = filedialog.askopenfilenames(
+        title="Select data files",
         filetypes=(("CSV files", "*.csv"), ("Excel files", "*.xlsx"), ("All files", "*.*")),
     )
-    if not filename:
+    if not filenames:
         return
 
     try:
-        imported_img = show_progress_bar("Importing Data", import_task, filename)
-        show_scaled_image(imported_img)
+        images = []
+        for filename in filenames:
+            imported_img = show_progress_bar("Importing Data", import_task, filename)
+            images.append(imported_img)
+        show_images(images)
     except Exception as e:
         messagebox.showerror("Error", f"Failed to import data: {str(e)}")
 
+def show_images(images):
+    for widget in image_frame.winfo_children():
+        widget.destroy()
 
-def show_scaled_image(img):
-    cv2.namedWindow("Imported Image", cv2.WINDOW_NORMAL)
-    cv2.imshow("Imported Image", img)
-    
-    def close_window():
-        cv2.destroyAllWindows()
-        root.quit()
-    
-    root.after(100, lambda: root.bind('<Key>', lambda e: close_window()))
-    root.mainloop()
+    for i, img in enumerate(images):
+        pil_img = Image.fromarray(img)
+        pil_img.thumbnail((200, 200))  # Resize image to fit in the frame
+        tk_img = ImageTk.PhotoImage(pil_img)
+        
+        label = tk.Label(image_frame, image=tk_img)
+        label.image = tk_img  # Keep a reference
+        label.grid(row=i//3, column=i%3, padx=5, pady=5)
 
 root = tk.Tk()
-root.withdraw()
+root.title("Import and Draw Images")
 
-show_loading_screen()
-root.title("Import and Draw Image")
+import_button = tk.Button(root, text="Import Data", command=import_and_draw_images)
+import_button.pack(pady=20)
 
-root.deiconify()
-tk.Button(root, text="Import Data", command=import_and_draw_image).pack(pady=20)
+image_frame = tk.Frame(root)
+image_frame.pack(padx=10, pady=10)
 
 root.mainloop()
