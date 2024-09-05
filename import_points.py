@@ -7,7 +7,78 @@ import numpy as np
 from PIL import Image, ImageTk
 import os
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from utils.launch_loading import show_loading_screen
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+def gaussian_filter(img, sigma=1):
+    """Simple Gaussian filter implementation using NumPy"""
+    x, y = np.mgrid[-sigma:sigma+1, -sigma:sigma+1]
+    g = np.exp(-(x**2/float(sigma)+y**2/float(sigma)))
+    g = g / g.sum()
+    return np.convolve(img.flatten(), g.flatten(), mode='same').reshape(img.shape)
+
+def show_3d_plot(img):
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    # Set threshold and normalize the image
+    threshold = 50  # Adjust this value as needed
+    Z = img.copy()
+    Z[Z < threshold] = 0
+    Z = Z - Z.min()
+    Z = Z / Z.max() * 255 if Z.max() > 0 else Z
+    
+    # Apply Gaussian filter to smooth the data
+    Z = gaussian_filter(Z, sigma=1)
+    
+    # Reduce data points
+    n = 2  # Adjust this value to balance between performance and quality
+    y, x = np.mgrid[0:Z.shape[0]:n, 0:Z.shape[1]:n]
+    Z = Z[::n, ::n]
+    
+    # Plot the surface
+    surf = ax.plot_surface(x, y, Z, cmap='gray', edgecolor='none', 
+                           rstride=2, cstride=2, antialiased=False)
+    
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Intensity')
+    ax.set_title('3D Surface Plot of Fingerprint')
+    
+    # Set the origin to bottom-left and ensure full image is shown
+    ax.set_xlim(0, img.shape[1])
+    ax.set_ylim(0, img.shape[0])
+    ax.set_zlim(0, 255)
+    
+    # Adjust the scale of z-axis to be 1/20 of x-axis for a flatter appearance
+    x_range = img.shape[1]
+    z_range = 255
+    ax.get_proj = lambda: np.dot(Axes3D.get_proj(ax), np.diag([1, 1, x_range / (z_range * 20), 1]))
+    
+    # Invert y-axis to match image coordinates
+    ax.invert_yaxis()
+    
+    # Adjust the viewing angle
+    ax.view_init(elev=25, azim=230)
+    
+    # Remove the background grid for a cleaner look
+    ax.grid(False)
+    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    
+    # Remove tick labels for a cleaner look
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.set_zticklabels([])
+    
+    # Add colorbar to show grayscale values
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+    
+    plt.show()
 
 def show_progress_bar(title, task_function, *args):
     progress_window = tk.Toplevel()
@@ -69,7 +140,7 @@ def import_task(progress_label, progress_bar, filename, file_index, total_files)
         # Update progress
         progress = (index + 1) / total_rows
         progress_bar['value'] = progress * 100
-        progress_label.config(text=f"Processing file {file_index}/{total_files}, row {index + 1}/{total_rows}")
+        progress_label.config(text=f"Processing file {file_index}/{total_files}, point {index + 1}/{total_rows}")
         progress_label.update()
 
     return img
@@ -155,31 +226,6 @@ def show_images(images):
         image_frame.grid_columnconfigure(i, weight=1)
     for i in range(num_rows):
         image_frame.grid_rowconfigure(i, weight=1)
-
-def show_3d_plot(img):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    
-    y, x = np.mgrid[0:img.shape[0], 0:img.shape[1]]
-    Z = img
-    
-    surf = ax.plot_surface(x, y, Z, cmap='gray')
-    
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Intensity')
-    ax.set_title('3D Surface Plot of Fingerprint')
-    
-    # Set the origin to bottom-left
-    ax.set_xlim(0, img.shape[1])
-    ax.set_ylim(0, img.shape[0])
-    
-    # Invert y-axis to match image coordinates
-    ax.invert_yaxis()
-    
-    fig.colorbar(surf, shrink=0.5, aspect=5)
-    
-    plt.show()
 
 root = tk.Tk()
 root.withdraw()  # Hide the main window initially
