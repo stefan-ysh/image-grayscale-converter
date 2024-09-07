@@ -1,7 +1,7 @@
 # -- coding: UTF-8 --
 import threading
 import tkinter as tk
-from tkinter import filedialog, ttk, messagebox
+from tkinter import filedialog, ttk, messagebox, colorchooser
 import pandas as pd
 import numpy as np
 from PIL import Image, ImageTk
@@ -10,75 +10,93 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from utils.launch_loading import show_loading_screen
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+import pyvista as pv
+import matplotlib.colors as mcolors
 
-def gaussian_filter(img, sigma=1):
+def gaussian_filter(input, sigma):
     """Simple Gaussian filter implementation using NumPy"""
     x, y = np.mgrid[-sigma:sigma+1, -sigma:sigma+1]
     g = np.exp(-(x**2/float(sigma)+y**2/float(sigma)))
     g = g / g.sum()
-    return np.convolve(img.flatten(), g.flatten(), mode='same').reshape(img.shape)
+    return np.convolve(input.flatten(), g.flatten(), mode='same').reshape(input.shape)
 
 def show_3d_plot(img):
-    fig = plt.figure(figsize=(10, 8))
-    ax = fig.add_subplot(111, projection='3d')
+    # Normalize the image
+    Z = img.astype(float)
+    Z = (Z - Z.min()) / (Z.max() - Z.min())
     
-    # Set threshold and normalize the image
-    threshold = 50  # Adjust this value as needed
-    Z = img.copy()
-    Z[Z < threshold] = 0
-    Z = Z - Z.min()
-    Z = Z / Z.max() * 255 if Z.max() > 0 else Z
+    # Invert the values so that ridges are higher than valleys
+    Z = 1 - Z
     
-    # Apply Gaussian filter to smooth the data
+    # Enhance contrast
+    Z = np.power(Z, 0.5)
+    
+    # Apply Gaussian smoothing
     Z = gaussian_filter(Z, sigma=1)
     
-    # Reduce data points
-    n = 2  # Adjust this value to balance between performance and quality
-    y, x = np.mgrid[0:Z.shape[0]:n, 0:Z.shape[1]:n]
-    Z = Z[::n, ::n]
+    # Create a grid
+    y, x = np.mgrid[:Z.shape[0], :Z.shape[1]]
     
-    # Plot the surface
-    surf = ax.plot_surface(x, y, Z, cmap='gray', edgecolor='none', 
-                           rstride=2, cstride=2, antialiased=False)
+    # Create PyVista grid
+    grid = pv.StructuredGrid(x, y, Z * 50)  # Exaggerate height more
+    grid["elevation"] = Z.ravel(order="F")
     
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Intensity')
-    ax.set_title('3D Surface Plot of Fingerprint')
+    # Create PyVista plotter
+    p = pv.Plotter()
     
-    # Set the origin to bottom-left and ensure full image is shown
-    ax.set_xlim(0, img.shape[1])
-    ax.set_ylim(0, img.shape[0])
-    ax.set_zlim(0, 255)
+    # Function to update the color map
+    def update_color(color_or_cmap):
+        if isinstance(color_or_cmap, str) and color_or_cmap in plt.colormaps():
+            # If it's a valid colormap name, use it directly
+            cmap = color_or_cmap
+        else:
+            # If it's a color, create a custom colormap
+            try:
+                rgb = mcolors.to_rgb(color_or_cmap)
+                cmap = plt.cm.colors.LinearSegmentedColormap.from_list("custom", [(1,1,1), rgb])
+            except ValueError:
+                print(f"Invalid color or colormap: {color_or_cmap}. Using default.")
+                cmap = 'coolwarm'
+        
+        p.add_mesh(grid, cmap=cmap, smooth_shading=True, specular=1, specular_power=15)
+        p.render()
+
+    # Create a color chooser function
+    def choose_color():
+        color_window = tk.Toplevel()
+        color_window.withdraw()
+        color_window.attributes('-topmost', True)
+        color = colorchooser.askcolor(title="Choose color for 3D plot", parent=color_window)[1]
+        color_window.destroy()
+        if color:
+            update_color(color)
+
+    # Add a key event to open color chooser
+    p.add_key_event('c', choose_color)
+
+    # Initial plot with default colormap
+    update_color('coolwarm')
     
-    # Adjust the scale of z-axis to be 1/20 of x-axis for a flatter appearance
-    x_range = img.shape[1]
-    z_range = 255
-    ax.get_proj = lambda: np.dot(Axes3D.get_proj(ax), np.diag([1, 1, x_range / (z_range * 20), 1]))
+    # Set up lighting for better 3D effect
+    light = pv.Light(position=(0, 0, 1), focal_point=(0, 0, 0), intensity=0.7)
+    p.add_light(light)
     
-    # Invert y-axis to match image coordinates
-    ax.invert_yaxis()
+    # Set camera position for a view similar to the image
+    p.camera_position = [(grid.bounds[1]*0.7, grid.bounds[3]*1.3, grid.bounds[5]*2),
+                         (grid.center[0], grid.center[1], 0),
+                         (0, 1, 0)]
     
-    # Adjust the viewing angle
-    ax.view_init(elev=25, azim=230)
+    # Adjust the camera zoom
+    p.camera.zoom(1.2)
     
-    # Remove the background grid for a cleaner look
-    ax.grid(False)
-    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    # Add axes
+    p.add_axes()
     
-    # Remove tick labels for a cleaner look
-    ax.set_xticklabels([])
-    ax.set_yticklabels([])
-    ax.set_zticklabels([])
-    
-    # Add colorbar to show grayscale values
-    fig.colorbar(surf, shrink=0.5, aspect=5)
-    
-    plt.show()
+    # Add text to inform user about the color change option
+    p.add_text("Press 'c' to change color", font_size=12)
+
+    # Show the plot
+    p.show()
 
 def show_progress_bar(title, task_function, *args):
     progress_window = tk.Toplevel()
@@ -148,7 +166,7 @@ def import_task(progress_label, progress_bar, filename, file_index, total_files)
 def import_and_draw_images():
     filenames = filedialog.askopenfilenames(
         title="Select data files",
-        filetypes=(("CSV files", "*.csv"), ("Excel files", "*.xlsx"), ("All files", "*.*")),
+        filetypes=(("Excel files", "*.xlsx *.xls"), ("CSV files", "*.csv"), ("All files", "*.*")),
     )
     if not filenames:
         # messagebox.showinfo("No Files Selected", "Please select at least one file to import.")
