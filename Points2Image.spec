@@ -21,7 +21,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='Image-3D',
+    name='Points2Image',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
