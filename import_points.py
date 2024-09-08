@@ -235,15 +235,35 @@ def show_images(images):
         filename_label = tk.Label(container, text=filename, bg='white', fg='black')
         filename_label.place(relx=0.5, y=0, anchor='n')
         
-        # Add "Show 3D Plot" button to the top right corner
-        show_3d_button = tk.Button(container, text="3D", command=lambda img=img: show_3d_plot(img))
-        show_3d_button.place(relx=1, y=0, anchor='ne')
+        # Add "Save" button to the top right corner
+        save_button = tk.Button(container, text="Save Image", command=lambda img=img, filename=filename: save_image(img, filename))
+        save_button.place(relx=1, y=0, anchor='ne')
+        
+        # Add "Show 3D Plot" button to the left of the "Save" button
+        show_3d_button = tk.Button(container, text="3D Model", command=lambda img=img: show_3d_plot(img))
+        show_3d_button.place(relx=1, y=0, anchor='ne', x=-save_button.winfo_reqwidth())
 
     # Configure grid to center the images
     for i in range(num_cols):
         image_frame.grid_columnconfigure(i, weight=1)
     for i in range(num_rows):
         image_frame.grid_rowconfigure(i, weight=1)
+
+def save_image(img, filename):
+    # Remove file extension from the original filename
+    base_filename = os.path.splitext(filename)[0]
+    
+    # Ask user for save location
+    save_path = filedialog.asksaveasfilename(
+        defaultextension=".png",
+        filetypes=[("PNG files", "*.png"), ("All files", "*.*")],
+        initialfile=f"{base_filename}_processed.png"
+    )
+    
+    if save_path:
+        # Save the image
+        Image.fromarray(img).save(save_path)
+        messagebox.showinfo("Save Successful", f"Image saved as {save_path}")
 
 root = tk.Tk()
 root.withdraw()  # Hide the main window initially
