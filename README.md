@@ -33,6 +33,13 @@ MIT License
 ```
 pyinstaller --onefile --windowed --icon ./logo.ico ./main.py -n "Grayscale Converter"
 
+> 打包文件夹
+pyinstaller --onedir --windowed --icon ./logo.ico ./main.py -n "Grayscale Converter"
+
+
 pyinstaller --onefile --windowed --icon ./logo.ico ./import_points.py -n Points2Image
+
+> 打包文件夹
+pyinstaller --onedir --windowed --icon ./logo.ico ./import_points.py -n Points2Image
 
 ```
