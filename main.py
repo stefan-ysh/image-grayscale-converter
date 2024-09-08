@@ -11,7 +11,6 @@ from datetime import datetime
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import messagebox
 import numpy as np
-import time
 from utils.launch_loading import show_loading_screen
 # show progress bar
 def show_progress_bar(title, task_function, *args):
@@ -602,7 +601,7 @@ def select_image():
     )
     if not filename:
         return
-    img = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
+    img = cv2.imdecode(np.fromfile(filename, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
     if img is None:
         messagebox.showerror("Error", "Could not open or find the image.")
         return
