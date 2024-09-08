@@ -31,7 +31,7 @@ MIT License
 ## Build
 
 ```
-pyinstaller --onefile --windowed --icon ./logo.ico ./main.py -n Image-Grayscale-Converter
+pyinstaller --onefile --windowed --icon ./logo.ico ./main.py -n "Grayscale Converter"
 
 pyinstaller --onefile --windowed --icon ./logo.ico ./import_points.py -n Points2Image
 
