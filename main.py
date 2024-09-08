@@ -601,7 +601,7 @@ def select_image():
     )
     if not filename:
         return
-    img = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
+    img = cv2.imdecode(np.fromfile(filename, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
     if img is None:
         messagebox.showerror("Error", "Could not open or find the image.")
         return
