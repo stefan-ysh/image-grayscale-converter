@@ -1,6 +1,14 @@
 # image-grayscale-converter
 
-A tool for converting images to grayscale, using the OpenCV library.
+A powerful tool for converting images to grayscale and analyzing grayscale intensity, using the OpenCV library.
+
+## Features
+
+- Convert images to grayscale
+- Analyze grayscale intensity in selected regions
+- Generate charts for grayscale analysis
+- Export analysis data to Excel
+- Save grayscale images with analysis regions
 
 ## Installation
 
@@ -13,7 +21,7 @@ A tool for converting images to grayscale, using the OpenCV library.
 2. Install the required dependencies:
 
    ```
-   pip install -r ./requirements.txt
+   pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
    ```
 
 ## Usage
@@ -24,16 +32,29 @@ A tool for converting images to grayscale, using the OpenCV library.
    python ./main.py
    ```
 
+2. Use the GUI to:
+   - Select an image for analysis
+   - Draw rectangles on the image to define analysis regions
+   - Adjust the number of analysis points for each region
+   - View grayscale intensity charts for each region
+   - Export analysis data to Excel
+   - Save grayscale images with analysis regions
+
+## Building Executable
+
+To create a standalone executable:
+
+```
+pyinstaller --onefile --windowed --icon ./logo.ico ./main.py -n "Grayscale Converter"
+```
+```
+pyinstaller --onedir --windowed --icon ./logo.ico ./main.py -n "Grayscale Converter"
+```
+
 ## License
 
 MIT License
 
-## Build
+## Contributing
 
-```
-pyinstaller --onefile --windowed --icon ./logo.ico ./main.py -n "Grayscale Converter"
-
-> 打包文件夹
-pyinstaller --onedir --windowed --icon ./logo.ico ./main.py -n "Grayscale Converter"
-
-```
+Contributions are welcome! Please feel free to submit a Pull Request.
