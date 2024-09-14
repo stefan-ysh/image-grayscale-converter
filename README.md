@@ -42,11 +42,18 @@ A powerful tool for converting images to grayscale and analyzing grayscale inten
 
 ## Building Executable
 
+> **Note:** If you want to build a standalone executable, you need to install `PyInstaller` first.And open a new terminal in the project directory.
+
+```
+pip install pyinstaller
+```
+
 To create a standalone executable:
 
 ```
 pyinstaller --onefile --windowed --icon ./logo.ico ./main.py -n "Grayscale Converter"
 ```
+
 ```
 pyinstaller --onedir --windowed --icon ./logo.ico ./main.py -n "Grayscale Converter"
 ```
