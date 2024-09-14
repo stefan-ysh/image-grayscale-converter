@@ -711,46 +711,33 @@ def export_data_to_excel():
         messagebox.showerror("Error", "Failed to export data.")
 
 
-# 主窗口按钮设置
-select_button = tk.Button(
-    root, padx=10, text="Select Image", command=select_image, font=button_font
-)
-set_max_points_num_button = tk.Button(
-    root,
-    padx=10,
-    text=f"Set Max Points ({MAX_POINTS})",
-    command=set_max_points,
-    font=button_font,
-)
-save_chart_button = tk.Button(
-    root,
-    padx=10,
-    text="Save Chart Image",
-    command=lambda: image_processor.save_plot_image() if image_processor else None,
-    font=button_font,
-)
-export_button = tk.Button(
-    root,
-    padx=10,
-    text="Export Data to Excel",
-    command=export_data_to_excel,
-    font=button_font,
-)
-save_gray_image_button = tk.Button(
-    root,
-    padx=10,
-    text="Save Gray Image",
-    command=lambda: image_processor.save_gray_img(
-        cv2, gray_img, rectangles, show_progress_bar
-    ),
-    font=button_font,
-)
+def create_button(root, text, command, font, state=tk.NORMAL):
+    return tk.Button(root, text=text, command=command, font=font, state=state, padx=10)
 
-select_button.grid(row=0, column=0, sticky="ew", padx=20, pady=20)
-set_max_points_num_button.grid(row=0, column=1, sticky="ew", padx=20, pady=20)
-save_chart_button.grid(row=0, column=2, sticky="ew", padx=20, pady=20)
-save_gray_image_button.grid(row=0, column=4, sticky="ew", padx=20, pady=20)
-export_button.grid(row=0, column=3, sticky="ew", padx=20, pady=20)
+def create_and_grid_button(root, text, command, font, row, column, state=tk.NORMAL):
+    button = create_button(root, text, command, font, state)
+    button.grid(row=row, column=column, sticky="ew", padx=20, pady=20)
+    return button
+
+# 主窗口按钮设置
+buttons = [
+    ("Select Image", select_image, tk.NORMAL),
+    (f"Set Max Points ({MAX_POINTS})", set_max_points, tk.NORMAL),
+    ("Save Chart Image", lambda: image_processor.save_plot_image() if image_processor else None, tk.DISABLED),
+    ("Export Data to Excel", export_data_to_excel, tk.DISABLED),
+    ("Save Gray Image", lambda: image_processor.save_gray_img(cv2, gray_img, rectangles, show_progress_bar), tk.DISABLED)
+]
+
+for i, (text, command, state) in enumerate(buttons):
+    button = create_and_grid_button(root, text, command, button_font, 0, i, state)
+    if "Chart" in text:
+        save_chart_button = button
+    elif "Export" in text:
+        export_button = button
+    elif "Gray Image" in text:
+        save_gray_image_button = button
+    elif "Max Points" in text:
+        set_max_points_num_button = button
 
 
 def create_plot_canvas():
@@ -758,11 +745,6 @@ def create_plot_canvas():
     canvas = FigureCanvasTkAgg(fig, master=root)
     canvas.get_tk_widget().grid(row=1, column=0, columnspan=5, sticky="nsew")
     return canvas
-
-
-save_chart_button.config(state="disabled")
-export_button.config(state="disabled")
-save_gray_image_button.config(state="disabled")
 
 
 # 关闭窗口
