@@ -1,6 +1,7 @@
 # -- coding: UTF-8 --
 import cv2
 import tkinter as tk
+from tkinter import ttk
 from tkinter import filedialog, Menu, Scale, Entry
 from tkinter import font as tkfont
 import matplotlib.pyplot as plt
@@ -625,14 +626,17 @@ def export_data_to_excel():
     else:
         messagebox.showerror("Error", "Please select an image first.")
 
-def create_button(root, text, command, font, state=tk.NORMAL):
-    return tk.Button(root, text=text, command=command, font=font, state=state, padx=10)
+def create_button(root, text, command, state=tk.NORMAL):
+    return ttk.Button(root, text=text, command=command, style='TButton', state=state)
 
-def create_and_grid_button(root, text, command, font, row, column, state=tk.NORMAL):
-    button = create_button(root, text, command, font, state)
-    button.grid(row=row, column=column, sticky="ew", padx=20, pady=20)
+def create_and_grid_button(root, text, command, state=tk.NORMAL):
+    button = create_button(root, text, command, state)
+    button.grid(row=0, column=i, sticky="ew", padx=20, pady=20)
     return button
 
+# 创建ttk样式
+style = ttk.Style()
+style.configure('TButton', font=button_font, padding=10)
 
 # 主窗口按钮设置
 buttons = [
@@ -644,7 +648,7 @@ buttons = [
 ]
 
 for i, (text, command, state) in enumerate(buttons):
-    button = create_and_grid_button(root, text, command, button_font, 0, i, state)
+    button = create_and_grid_button(root, text, command, state)
     if "Chart" in text:
         save_chart_button = button
     elif "Export" in text:
