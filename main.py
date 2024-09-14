@@ -12,6 +12,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import messagebox
 import numpy as np
 from utils.launch_loading import show_loading_screen
+
+
 # show progress bar
 def show_progress_bar(title, task_function, *args):
     progress_window = tk.Toplevel()
@@ -47,9 +49,12 @@ def show_progress_bar(title, task_function, *args):
     progress_window.destroy()
     return result
 
+
 def get_image_processor():
     from utils.image_processor import ImageProcessor
+
     return ImageProcessor(img, plt, show_progress_bar)
+
 
 # show loading screen when the program is launching
 
@@ -97,10 +102,12 @@ MIN_RECT_HEIGHT = 20
 # Define a standard button font
 button_font = tkfont.Font(size=15)
 
+
 # convert hex color to bgr
 def hex_to_bgr(hex_color):
     hex_color = hex_color.lstrip("#")
     return tuple(int(hex_color[i : i + 2], 16) for i in (4, 2, 0))  # BGR 顺序
+
 
 # mouse event
 def mouse_callback(event, x, y, flags, param):
@@ -240,8 +247,12 @@ def edit_rectangle_points(rect_index):
     # 计算实际点数
     x1, y1 = start
     x2, y2 = end
-    x1, x2 = sorted([max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))])
-    y1, y2 = sorted([max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))])
+    x1, x2 = sorted(
+        [max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))]
+    )
+    y1, y2 = sorted(
+        [max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))]
+    )
     actual_points = (x2 - x1) * (y2 - y1)
 
     # 创建并放置滑动条
@@ -263,7 +274,9 @@ def edit_rectangle_points(rect_index):
 
     # 创建复选框
     use_actual_points = tk.BooleanVar()
-    use_actual_points_checkbox = tk.Checkbutton(top, text="Use actual points", variable=use_actual_points)
+    use_actual_points_checkbox = tk.Checkbutton(
+        top, text="Use actual points", variable=use_actual_points
+    )
     use_actual_points_checkbox.pack(pady=10)
 
     # 更新函数
@@ -281,14 +294,15 @@ def edit_rectangle_points(rect_index):
                 new_max_points = actual_points
             else:
                 new_max_points = int(entry.get())
-            
+
             if 10 <= new_max_points <= max(100000, actual_points):
                 rectangles[rect_index] = (start, end, name, new_max_points)
                 update_plot()
                 top.destroy()
             else:
                 messagebox.showerror(
-                    "Error", f"Please enter a value between 10 and {max(100000, actual_points)}."
+                    "Error",
+                    f"Please enter a value between 10 and {max(100000, actual_points)}.",
                 )
         except ValueError:
             messagebox.showerror("Error", "Please enter a valid integer.")
@@ -490,7 +504,13 @@ def set_max_points():
 
     # 创建并放置滑动条
     slider = Scale(
-        top, from_=10, to=100000, orient="horizontal", length=400, label="Max Points", font=200
+        top,
+        from_=10,
+        to=100000,
+        orient="horizontal",
+        length=400,
+        label="Max Points",
+        font=200,
     )
     slider.set(MAX_POINTS)
     slider.pack(pady=20)
@@ -502,7 +522,9 @@ def set_max_points():
 
     # 创建复选框
     use_actual_points = tk.BooleanVar()
-    use_actual_points_checkbox = tk.Checkbutton(top, text="Use actual points", variable=use_actual_points)
+    use_actual_points_checkbox = tk.Checkbutton(
+        top, text="Use actual points", variable=use_actual_points
+    )
     use_actual_points_checkbox.pack(pady=10)
 
     # 更新函数
@@ -520,7 +542,7 @@ def set_max_points():
             pass
 
     slider.config(command=update_value)
-    entry.bind('<KeyRelease>', update_slider)
+    entry.bind("<KeyRelease>", update_slider)
 
     # 说明文本
     explanation = tk.Label(
@@ -546,9 +568,13 @@ def set_max_points():
                 if 10 <= value <= 100000:
                     MAX_POINTS = value
                 else:
-                    messagebox.showerror("Error", "Please enter a value between 10 and 100000.")
+                    messagebox.showerror(
+                        "Error", "Please enter a value between 10 and 100000."
+                    )
                     return
-            set_max_points_num_button.config(text=f"Set Max Points ({'Actual' if MAX_POINTS == 0 else MAX_POINTS})")
+            set_max_points_num_button.config(
+                text=f"Set Max Points ({'Actual' if MAX_POINTS == 0 else MAX_POINTS})"
+            )
             top.destroy()
         except ValueError:
             messagebox.showerror("Error", "Please enter a valid integer.")
@@ -557,15 +583,19 @@ def set_max_points():
     button_frame = tk.Frame(top)
     button_frame.pack(pady=10)
     # Cancel button
-    cancel_button = tk.Button(button_frame, text="Cancel", command=top.destroy, font=300)
+    cancel_button = tk.Button(
+        button_frame, text="Cancel", command=top.destroy, font=300
+    )
     cancel_button.pack(side=tk.LEFT, padx=5)
     # Confirm button
-    confirm_button = tk.Button(button_frame, text="Confirm", command=on_confirm, font=300)
+    confirm_button = tk.Button(
+        button_frame, text="Confirm", command=on_confirm, font=300
+    )
     confirm_button.pack(side=tk.LEFT, padx=5)
 
     # 绑定回车键到确认函数
-    entry.bind('<Return>', lambda event: on_confirm())
-    top.bind('<Return>', lambda event: on_confirm())
+    entry.bind("<Return>", lambda event: on_confirm())
+    top.bind("<Return>", lambda event: on_confirm())
 
     # 更新复选框状态时的回调函数
     def update_checkbox_state():
@@ -591,7 +621,8 @@ def set_max_points():
     height = top.winfo_height()
     x = (root.winfo_width() - width) // 2 + root.winfo_x()
     y = (root.winfo_height() - height) // 2 + root.winfo_y()
-    top.geometry(f'+{x}+{y}')
+    top.geometry(f"+{x}+{y}")
+
 
 def select_image():
     global img, gray_img, pixel_data_with_coordinates, mouse_coordinates, rectangles, lines, rect_start, rect_end, line_start, image_processor
@@ -626,6 +657,7 @@ def select_image():
     # 在这里初始化 ImageProcessor
     image_processor = get_image_processor()
 
+
 def export_data_to_excel():
     if img is None:
         messagebox.showerror("Error", "Please select an image first.")
@@ -648,10 +680,16 @@ def export_data_to_excel():
                 x1, y1 = start
                 x2, y2 = end
                 x1, x2 = sorted(
-                    [max(0, min(x1, gray_img.shape[1])), max(0, min(x2, gray_img.shape[1]))]
+                    [
+                        max(0, min(x1, gray_img.shape[1])),
+                        max(0, min(x2, gray_img.shape[1])),
+                    ]
                 )
                 y1, y2 = sorted(
-                    [max(0, min(y1, gray_img.shape[0])), max(0, min(y2, gray_img.shape[0]))]
+                    [
+                        max(0, min(y1, gray_img.shape[0])),
+                        max(0, min(y2, gray_img.shape[0])),
+                    ]
                 )
                 rect_pixels = gray_img[y1:y2, x1:x2].flatten()
 
@@ -683,8 +721,12 @@ def export_data_to_excel():
                 chart.x_axis.title = "Index"
                 chart.y_axis.title = "Grayscale Value"
 
-                data = Reference(worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1)
-                categories = Reference(worksheet, min_col=1, min_row=2, max_row=len(df) + 1)
+                data = Reference(
+                    worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1
+                )
+                categories = Reference(
+                    worksheet, min_col=1, min_row=2, max_row=len(df) + 1
+                )
 
                 chart.add_data(data, titles_from_data=True)
                 chart.set_categories(categories)
@@ -703,18 +745,47 @@ def export_data_to_excel():
         return True
 
     result = show_progress_bar("Exporting Data", export_task)
-    
+
     if result:
         messagebox.showinfo("Success", "Data exported and charts added successfully!")
     else:
         messagebox.showerror("Error", "Failed to export data.")
 
+
 # 主窗口按钮设置
-select_button = tk.Button(root, padx=10, text="Select Image", command=select_image, font=button_font)
-set_max_points_num_button = tk.Button(root, padx=10, text=f"Set Max Points ({MAX_POINTS})", command=set_max_points, font=button_font)
-save_chart_button = tk.Button(root, padx=10, text="Save Chart Image", command=lambda: image_processor.save_plot_image() if image_processor else None, font=button_font)
-export_button = tk.Button(root, padx=10, text="Export Data to Excel", command=export_data_to_excel, font=button_font)
-save_gray_image_button = tk.Button(root, padx=10, text="Save Gray Image", command=lambda: image_processor.save_gray_img(cv2, gray_img, rectangles, show_progress_bar), font=button_font)
+select_button = tk.Button(
+    root, padx=10, text="Select Image", command=select_image, font=button_font
+)
+set_max_points_num_button = tk.Button(
+    root,
+    padx=10,
+    text=f"Set Max Points ({MAX_POINTS})",
+    command=set_max_points,
+    font=button_font,
+)
+save_chart_button = tk.Button(
+    root,
+    padx=10,
+    text="Save Chart Image",
+    command=lambda: image_processor.save_plot_image() if image_processor else None,
+    font=button_font,
+)
+export_button = tk.Button(
+    root,
+    padx=10,
+    text="Export Data to Excel",
+    command=export_data_to_excel,
+    font=button_font,
+)
+save_gray_image_button = tk.Button(
+    root,
+    padx=10,
+    text="Save Gray Image",
+    command=lambda: image_processor.save_gray_img(
+        cv2, gray_img, rectangles, show_progress_bar
+    ),
+    font=button_font,
+)
 
 select_button.grid(row=0, column=0, sticky="ew", padx=20, pady=20)
 set_max_points_num_button.grid(row=0, column=1, sticky="ew", padx=20, pady=20)
@@ -734,6 +805,7 @@ save_chart_button.config(state="disabled")
 export_button.config(state="disabled")
 save_gray_image_button.config(state="disabled")
 
+
 # 关闭窗口
 def on_closing_root_win():
     if messagebox.askokcancel("Quit", "Are you sure to quit?"):
@@ -741,7 +813,8 @@ def on_closing_root_win():
         cv2.destroyAllWindows()
         # 关闭root窗口
         root.destroy()
-        
+
+
 canvas = create_plot_canvas()
 update_plot()
 root.grid_rowconfigure(1, weight=1)

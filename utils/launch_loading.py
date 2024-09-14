@@ -1,8 +1,11 @@
 import tkinter as tk
 import time
 
+
 class LoadingScreen:
-    def __init__(self, width=300, height=100, title="", text="launching...", font=("Arial", 16)):
+    def __init__(
+        self, width=300, height=100, title="", text="launching...", font=("Arial", 16)
+    ):
         self.width = width
         self.height = height
         self.title = title
@@ -39,6 +42,7 @@ class LoadingScreen:
             time.sleep(0.01)
 
         loading_window.destroy()
+
 
 def show_loading_screen():
     loading_screen = LoadingScreen()
