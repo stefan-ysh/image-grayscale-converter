@@ -5,9 +5,6 @@ from tkinter import ttk
 from tkinter import filedialog, Menu, Scale, Entry
 from tkinter import font as tkfont
 import matplotlib.pyplot as plt
-from openpyxl.chart import LineChart, Reference
-import pandas as pd
-from datetime import datetime
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import messagebox
 import numpy as np
@@ -444,138 +441,92 @@ def update_plot():
     plt.tight_layout()
     canvas.draw()
 
+def set_line_width():
+    global line_width
+
+    def update_width(value):
+        global line_width
+        line_width = float(value)
+        width_label.config(text=f"Line Width: {line_width:.2f}")
+
+    top = tk.Toplevel(root)
+    top.title("Line Width")
+    top.geometry("300x150")
+
+    width_label = ttk.Label(top, text=f"Line Width: {line_width:.2f}")
+    width_label.pack(pady=10)
+
+    width_scale = ttk.Scale(top, from_=0.1, to=10, orient="horizontal", length=200, command=update_width)
+    width_scale.set(line_width)
+    width_scale.pack(pady=10)
+
+    ttk.Button(top, text="Apply", command=lambda: [update_plot(), top.destroy()]).pack(pady=10)
+
 
 def set_max_points():
     global MAX_POINTS
 
-    # 创建一个新的顶层窗口
-    top = tk.Toplevel(root, padx=100)
-    top.title("")
+    def update_max_points(value):
+        global MAX_POINTS
+        MAX_POINTS = int(float(value))
+        points_label.config(text=f"Max Points: {MAX_POINTS}")
 
-    # 不显示最小化和最大化按钮
-    top.attributes("-toolwindow", 1)
-    top.resizable(False, False)
+    top = tk.Toplevel(root)
+    top.title("Max Points")
+    top.geometry("300x200")
 
-    # 最上层且禁止与其他窗口交互
-    top.attributes("-topmost", True)
-    top.grab_set()
+    points_label = ttk.Label(top, text=f"Max Points: {MAX_POINTS}")
+    points_label.pack(pady=10)
 
-    top.overrideredirect(True)
+    points_scale = ttk.Scale(top, from_=10, to=100000, orient="horizontal", length=200, command=update_max_points)
+    points_scale.set(MAX_POINTS)
+    points_scale.pack(pady=10)
 
-    # 创建并放置滑动条
-    slider = Scale(
-        top,
-        from_=10,
-        to=100000,
-        orient="horizontal",
-        length=400,
-        label="Max Points",
-        font=200,
-    )
-    slider.set(MAX_POINTS)
-    slider.pack(pady=20)
-
-    # 创建输入框
-    entry = Entry(top, font=300)
-    entry.insert(0, str(MAX_POINTS))
-    entry.pack(pady=10)
-
-    # 创建复选框
     use_actual_points = tk.BooleanVar()
-    use_actual_points_checkbox = tk.Checkbutton(
-        top, text="Use actual points", variable=use_actual_points
+    use_actual_points_checkbox = ttk.Checkbutton(
+        top, text="Use actual points", variable=use_actual_points,
+        command=lambda: [points_scale.set(0), update_max_points('0')] if use_actual_points.get() else None
     )
     use_actual_points_checkbox.pack(pady=10)
 
-    # 更新函数
-    def update_value(val):
-        if not use_actual_points.get():
-            entry.delete(0, tk.END)
-            entry.insert(0, val)
-
-    def update_slider(event):
-        try:
-            value = int(entry.get())
-            if 10 <= value <= 100000:
-                slider.set(value)
-        except ValueError:
-            pass
-
-    slider.config(command=update_value)
-    entry.bind("<KeyRelease>", update_slider)
-
-    # 说明文本
-    explanation = tk.Label(
-        top,
-        text="1. 较小的值会减少数据量，加快处理速度，但可能丢失细节。\n"
-        "2. 较大的值会保留更多细节，但可能会降低性能，处理时间较慢。\n"
-        "3. 对于高分辨率图像或大区域，可能需要更大的值。\n"
-        "4. 更改后将应用于新生成的图表，不会影响已生成的图表。\n"
-        "5. 选择'Use actual points'将使用矩形区域内的所有点。",
-        justify=tk.LEFT,
-        font=300,
-    )
-    explanation.pack(pady=10)
-
-    # 确认函数
     def on_confirm():
         global MAX_POINTS
-        try:
-            if use_actual_points.get():
-                MAX_POINTS = 0  # 使用0表示使用实际点数
-            else:
-                value = int(entry.get())
-                if 10 <= value <= 100000:
-                    MAX_POINTS = value
-                else:
-                    messagebox.showerror(
-                        "Error", "Please enter a value between 10 and 100000."
-                    )
-                    return
-            set_max_points_num_button.config(
-                text=f"Set Max Points ({'Actual' if MAX_POINTS == 0 else MAX_POINTS})"
-            )
-            top.destroy()
-        except ValueError:
-            messagebox.showerror("Error", "Please enter a valid integer.")
+        if use_actual_points.get():
+            MAX_POINTS = 0
+        set_max_points_num_button.config(
+            text=f"Set Max Points ({'Actual' if MAX_POINTS == 0 else MAX_POINTS})"
+        )
+        top.destroy()
 
     # Create a frame to hold the buttons
     button_frame = tk.Frame(top)
     button_frame.pack(pady=10)
+
     # Cancel button
-    cancel_button = tk.Button(
-        button_frame, text="Cancel", command=top.destroy, font=300
-    )
+    cancel_button = ttk.Button(button_frame, text="Cancel", command=top.destroy)
     cancel_button.pack(side=tk.LEFT, padx=5)
+
     # Confirm button
-    confirm_button = tk.Button(
-        button_frame, text="Confirm", command=on_confirm, font=300
-    )
+    confirm_button = ttk.Button(button_frame, text="Confirm", command=on_confirm)
     confirm_button.pack(side=tk.LEFT, padx=5)
 
-    # 绑定回车键到确认函数
-    entry.bind("<Return>", lambda event: on_confirm())
+    # Bind the Enter key to the confirm function
     top.bind("<Return>", lambda event: on_confirm())
 
-    # 更新复选框状态时的回调函数
+    # Update checkbox state
     def update_checkbox_state():
         if use_actual_points.get():
-            slider.set(10)
-            entry.delete(0, tk.END)
-            entry.insert(0, "Actual")
-            slider.config(state=tk.DISABLED)
-            entry.config(state=tk.DISABLED)
+            points_scale.set(0)
+            points_scale.config(state=tk.DISABLED)
         else:
-            slider.config(state=tk.NORMAL)
-            entry.config(state=tk.NORMAL)
-            entry.delete(0, tk.END)
-            entry.insert(0, str(slider.get()))
+            points_scale.config(state=tk.NORMAL)
 
     use_actual_points_checkbox.config(command=update_checkbox_state)
 
-    # 设置焦点到输入框
-    entry.focus_set()
-    # 更新窗口大小并居中显示
+    # Set focus to the scale
+    points_scale.focus_set()
+
+    # Update window size and center it
     top.update_idletasks()
     width = top.winfo_width()
     height = top.winfo_height()
@@ -641,9 +592,10 @@ style.configure('TButton', font=button_font, padding=10)
 # 主窗口按钮设置
 buttons = [
     ("Select Image", select_image, tk.NORMAL),
-    (f"Set Max Points ({MAX_POINTS})", set_max_points, tk.NORMAL),
+    (f" Max Points ({MAX_POINTS})", set_max_points, tk.NORMAL),
+    ("Line Width", set_line_width, tk.NORMAL),
     ("Save Chart Image", lambda: image_processor.save_plot_image() if image_processor else None, tk.DISABLED),
-    ("Export Data to Excel", export_data_to_excel, tk.DISABLED),
+    ("Export Data", export_data_to_excel, tk.DISABLED),
     ("Save Gray Image", lambda: image_processor.save_gray_img(cv2, gray_img, rectangles, show_progress_bar), tk.DISABLED)
 ]
 
@@ -662,7 +614,7 @@ for i, (text, command, state) in enumerate(buttons):
 def create_plot_canvas():
     fig, ax = plt.subplots(figsize=(8, 6))  # Set initial size of figure
     canvas = FigureCanvasTkAgg(fig, master=root)
-    canvas.get_tk_widget().grid(row=1, column=0, columnspan=5, sticky="nsew")
+    canvas.get_tk_widget().grid(row=1, column=0, columnspan=6, sticky="nsew")
     return canvas
 
 
@@ -683,6 +635,7 @@ root.grid_columnconfigure(1, weight=1)
 root.grid_columnconfigure(2, weight=1)
 root.grid_columnconfigure(3, weight=1)
 root.grid_columnconfigure(4, weight=1)
+root.grid_columnconfigure(5, weight=1) 
 
 # 监听关闭主窗口的事件
 root.protocol("WM_DELETE_WINDOW", on_closing_root_win)
