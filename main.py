@@ -69,7 +69,7 @@ class GrayScaleAnalyzer:
             messagebox.showerror("Error", "Please select an image first.")
 
     def save_gray_image(self):
-        if self.gray_img is not None:
+        if self.gray_img is not None and self.image_processor:
             self.image_processor.save_gray_img(cv2, self.gray_img, self.rectangles, show_progress_bar)
         else:
             messagebox.showerror("Error", "Please select an image first.")
@@ -475,7 +475,19 @@ class GrayScaleAnalyzer:
                         (end_canvas[0] - self.image_start_x, end_canvas[1] - self.image_start_y), 
                         self.rect_color, 2)
             
-            text_position = (start_canvas[0] - self.image_start_x, start_canvas[1] - self.image_start_y - 10)
+            # 计算文本位置（矩形内部左上角）
+            text_position = (start_canvas[0] - self.image_start_x + 5, start_canvas[1] - self.image_start_y + 20)
+            
+            # 获取文本大小
+            (text_width, text_height), _ = cv2.getTextSize(name, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            
+            # 绘制半透明背景
+            bg_start = (text_position[0] - 2, text_position[1] - text_height - 2)
+            bg_end = (text_position[0] + text_width + 2, text_position[1] + 2)
+            cv2.rectangle(display_img, bg_start, bg_end, (255, 255, 255), -1)
+            cv2.rectangle(display_img, bg_start, bg_end, self.rect_color, 1)
+            
+            # 绘制文本
             cv2.putText(display_img, name, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, self.rect_color, 1, cv2.LINE_AA)
             
             # 在四个角上绘制小圆圈
