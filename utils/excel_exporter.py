@@ -64,7 +64,14 @@ class ExcelExporter:
                         data.append([i + 1, gray_value, x_coord, y_coord])
 
                     df = pd.DataFrame(data, columns=["Index", "Grayscale", "X", "Y"])
-                    sheet_name = f"Chart_{idx + 1}"
+                    sheet_name = f"{name}"  # 使用矩形的名称作为sheet名称
+
+                    # 确保sheet名称是唯一的
+                    base_name = sheet_name
+                    counter = 1
+                    while sheet_name in writer.sheets:
+                        sheet_name = f"{base_name}_{counter}"
+                        counter += 1
 
                     df.to_excel(writer, sheet_name=sheet_name, index=False)
 

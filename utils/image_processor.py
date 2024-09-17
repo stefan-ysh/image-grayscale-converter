@@ -62,27 +62,20 @@ class ImageProcessor:
     @staticmethod
     def _draw_rectangles(cv2, gray_img, rectangles):
         img_with_rectangles = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2BGR)
-        for idx, rect in enumerate(rectangles):
-            start, end, _, _ = rect
+        for rect in rectangles:
+            start, end, name, _ = rect  # 解包时包括名称
             # 在图像上绘制矩形框，使用蓝色（BGR格式），线宽为2
             cv2.rectangle(img_with_rectangles, start, end, (255, 0, 0), 2)
             # 设置文本位置，略微在矩形框上方
             text_x, text_y = start[0], start[1] - 10
-            # 在图像上绘制文本，使用简单的字体，文本内容为"Chart {idx+1}"
+            # 在图像上绘制文本，使用实际的名称
             cv2.putText(
-                # 指定图像
                 img_with_rectangles,
-                # 指定文本内容
-                f"Chart {idx+1}",
-                # 指定文本位置
+                name,  # 使用传入的实际名称
                 (text_x, text_y),
-                # 指定字体
                 cv2.FONT_HERSHEY_SIMPLEX,
-                # 指定字体大小
                 0.5,
-                # 指定颜色
                 (255, 0, 0),
-                # 指定线宽
                 1,
             )
         return img_with_rectangles
