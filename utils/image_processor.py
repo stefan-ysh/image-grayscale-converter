@@ -1,4 +1,5 @@
 # -- coding: UTF-8 --
+import os
 from tkinter import messagebox, filedialog
 from datetime import datetime
 import numpy as np
@@ -64,31 +65,33 @@ class ImageProcessor:
     @staticmethod
     def _draw_rectangles(cv2, gray_img, rectangles):
         img_with_rectangles = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2RGB)
-        
+
         # 创建一个PIL Image对象
         pil_img = Image.fromarray(cv2.cvtColor(img_with_rectangles, cv2.COLOR_BGR2RGB))
         draw = ImageDraw.Draw(pil_img)
-        
+
         # 加载字体
         try:
-            font = ImageFont.truetype("assets/fonts/MicrosoftYaHei.ttf", 20)
+            font_path = os.path.join(
+                ImageProcessor.get_base_path(), "assets", "fonts", "MicrosoftYaHei.ttf"
+            )
+            font = ImageFont.truetype(font_path, 20)
         except IOError:
             font = ImageFont.load_default()
 
         for rect in rectangles:
             start, end, name, _ = rect
-            # 在图像上绘制矩形框，使用蓝色（RGB格式），线宽为2
+            # 在图像上绘制矩形框，使用蓝色（RGB格式），线宽为1
             draw.rectangle([start, end], outline=(0, 0, 255), width=1)
-            
+
             # 设置文本位置，略微在矩形框上方
             text_x, text_y = start[0], start[1] - 25
-            
+
             # 在图像上绘制文本，使用实际的名称
             draw.text((text_x, text_y), name, font=font, fill=(0, 0, 255))
 
         # 将PIL Image转换回OpenCV格式
         return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
-
 
     @staticmethod
     def _handle_save_result(result, image_type):
@@ -96,3 +99,8 @@ class ImageProcessor:
             messagebox.showinfo("Success", f"{image_type} saved successfully!")
         else:
             messagebox.showerror("Error", f"Failed to save {image_type.lower()}.")
+
+    @staticmethod
+    def get_base_path():
+        # Add this method to get the base path of your project
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
