@@ -1,6 +1,7 @@
 # -- coding: UTF-8 --
 import os
 import sys
+from tkinter import colorchooser
 import cv2
 import tkinter as tk
 from tkinter import ttk, filedialog, Menu, Scale, Entry, simpledialog
@@ -10,6 +11,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import messagebox
 import numpy as np
 from PIL import Image, ImageTk
+from utils.excel_exporter import ExcelExporter
 from utils.launch_loading import show_loading_screen
 from utils.show_progress_bar import show_progress_bar
 from utils.image_utils import ImageHandler
@@ -73,7 +75,7 @@ class GrayScaleAnalyzer:
 
     def save_gray_image(self):
         if self.gray_img is not None and self.image_processor:
-            self.image_processor.save_gray_img(cv2, self.gray_img, self.rectangles, show_progress_bar)
+            self.image_processor.save_gray_img(cv2, self.gray_img, self.rectangles, self.rect_color, show_progress_bar)
         else:
             messagebox.showerror("Error", "Please select an image first.")
 
@@ -83,7 +85,15 @@ class GrayScaleAnalyzer:
             self.last_height = event.height
             if self.original_img is not None:
                 self.update_gray_image()
-                
+    def set_rect_color(self):
+        color = colorchooser.askcolor(title="Choose Rectangle Color")
+        if color[1]:  # color[1] 是十六进制颜色字符串
+            # 将十六进制颜色转换为 RGB
+            rgb_color = tuple(int(color[1][i:i+2], 16) for i in (1, 3, 5))
+            # 将 RGB 转换为 BGR
+            self.rect_color = rgb_color[::-1]
+            self.update_display_image()
+            
     def create_main_window(self):
         self.button_font = tkfont.Font(size=12)
 
@@ -104,9 +114,11 @@ class GrayScaleAnalyzer:
 
         export_frame = ttk.LabelFrame(button_frame, text="Export")
         export_frame.pack(side=tk.LEFT, padx=5, pady=5)
+        
 
         # Create buttons
         ttk.Button(image_frame, text="Select Image", command=self.select_image).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(image_frame, text="Rectangle Color", command=self.set_rect_color).pack(side=tk.LEFT, padx=5, pady=5)
         
         self.set_max_points_num_button = ttk.Button(chart_frame, text=f"Max Points ({self.MAX_POINTS})", command=self.set_max_points)
         self.set_max_points_num_button.pack(side=tk.LEFT, padx=5, pady=5)
@@ -440,19 +452,18 @@ class GrayScaleAnalyzer:
     def update_display_image(self, highlight_corner=None, drawing=False):
         if self.scaled_img is None:
             return
-
         display_img = self.image_handler.update_display_image(
             self.scaled_img, self.rectangles, self.image_start_x, self.image_start_y,
             self.circle_radius, self.rect_color, self.rect_start, self.rect_end,
             os.path.join(self.get_base_path(), 'assets', 'fonts', 'MicrosoftYaHei.ttf'),
             highlight_corner, drawing, self.scale_factor
         )
-
         image = Image.fromarray(cv2.cvtColor(display_img, cv2.COLOR_BGR2RGB))
         self.current_image = ImageTk.PhotoImage(image=image)
         self.gray_image_canvas.delete("all")
         self.gray_image_canvas.create_image(self.image_start_x, self.image_start_y, anchor=tk.NW, image=self.current_image)
-    
+
+
     def update_plot(self):
         self.plot_handler.update_plot(self.plot_canvas, self.rectangles, self.original_img, self.line_width, self.line_color)
 

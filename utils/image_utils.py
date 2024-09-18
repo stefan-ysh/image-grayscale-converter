@@ -41,72 +41,58 @@ class ImageHandler:
         return (canvas_x, canvas_y)
 
     @staticmethod
-    def update_display_image(
-        scaled_img,
-        rectangles,
-        image_start_x,
-        image_start_y,
-        circle_radius,
-        rect_color,
-        rect_start,
-        rect_end,
-        font_path,
-        highlight_corner=None,
-        drawing=False,
-        scale_factor=1.0,
-    ):
+    def update_display_image(scaled_img, rectangles, image_start_x, image_start_y, circle_radius, rect_color, rect_start, rect_end, font_path, highlight_corner=None, drawing=False, scale_factor=1.0):
         display_img = scaled_img.copy()
         pil_img = Image.fromarray(cv2.cvtColor(display_img, cv2.COLOR_BGR2RGB))
         draw = ImageDraw.Draw(pil_img)
 
         try:
-            font = ImageFont.truetype(font_path, 15)
+            font = ImageFont.truetype(font_path, 20)
         except IOError:
             print(f"Error: Font file not found at {font_path}")
             font = ImageFont.load_default()
 
+        def is_light_color(color):
+            return (0.299 * color[2] + 0.587 * color[1] + 0.114 * color[0]) / 255 > 0.5
+
+        rect_color_rgb = rect_color[::-1]
+
         for start, end, name, _ in rectangles:
-            start_canvas = ImageHandler.image_to_canvas_coords(
-                start[0], start[1], image_start_x, image_start_y, scale_factor
-            )
-            end_canvas = ImageHandler.image_to_canvas_coords(
-                end[0], end[1], image_start_x, image_start_y, scale_factor
-            )
-
-            draw.rectangle(
-                [
-                    (start_canvas[0] - image_start_x, start_canvas[1] - image_start_y),
-                    (end_canvas[0] - image_start_x, end_canvas[1] - image_start_y),
-                ],
-                outline=(0, 0, 255),
-                width=2,
-            )
-
+            start_canvas = ImageHandler.image_to_canvas_coords(start[0], start[1], image_start_x, image_start_y, scale_factor)
+            end_canvas = ImageHandler.image_to_canvas_coords(end[0], end[1], image_start_x, image_start_y, scale_factor)
+            
+            draw.rectangle([
+                (start_canvas[0] - image_start_x, start_canvas[1] - image_start_y),
+                (end_canvas[0] - image_start_x, end_canvas[1] - image_start_y)
+            ], outline=rect_color_rgb, width=2)
+            
             left, top, right, bottom = draw.textbbox((0, 0), name, font=font)
             text_width = right - left
             text_height = bottom - top
             rect_width = end_canvas[0] - start_canvas[0]
-
+            
             if text_width + 10 > rect_width:
-                text_position = (
-                    start_canvas[0] - image_start_x,
-                    start_canvas[1] - image_start_y - text_height - 5,
-                )
+                text_position = (start_canvas[0] - image_start_x, start_canvas[1] - image_start_y - text_height - 5)
             else:
-                text_position = (
-                    start_canvas[0] - image_start_x + 5,
-                    start_canvas[1] - image_start_y + 5,
-                )
+                text_position = (start_canvas[0] - image_start_x + 5, start_canvas[1] - image_start_y + 5)
 
+            # Create a semi-transparent background for the text
+            bg_color = (*rect_color_rgb, 128)  # Add alpha channel for semi-transparency
             text_bg = [
                 text_position[0] - 2,
                 text_position[1] - 2,
                 text_position[0] + text_width + 2,
-                text_position[1] + text_height + 2,
+                text_position[1] + text_height + 10
             ]
-            draw.rectangle(text_bg, fill=(255, 255, 255))
-
-            draw.text(text_position, name, font=font, fill=(0, 0, 255))
+            draw.rectangle(text_bg, fill=bg_color)
+            
+            # Choose text color based on background brightness
+            if is_light_color(rect_color):
+                text_color = (0, 0, 0)  # Black text for light backgrounds
+            else:
+                text_color = (255, 255, 255)  # White text for dark backgrounds
+            
+            draw.text(text_position, name, font=font, fill=text_color)
 
             corners = [
                 start_canvas,
@@ -123,30 +109,18 @@ class ImageHandler:
                 ):
                     draw.ellipse(
                         [
-                            (
-                                corner_img[0] - circle_radius,
-                                corner_img[1] - circle_radius,
-                            ),
-                            (
-                                corner_img[0] + circle_radius,
-                                corner_img[1] + circle_radius,
-                            ),
+                            (corner_img[0] - circle_radius, corner_img[1] - circle_radius),
+                            (corner_img[0] + circle_radius, corner_img[1] + circle_radius),
                         ],
-                        fill=(0, 255, 0),
+                        fill=rect_color_rgb,  # 使用矩形颜色
                     )
                 else:
                     draw.ellipse(
                         [
-                            (
-                                corner_img[0] - circle_radius,
-                                corner_img[1] - circle_radius,
-                            ),
-                            (
-                                corner_img[0] + circle_radius,
-                                corner_img[1] + circle_radius,
-                            ),
+                            (corner_img[0] - circle_radius, corner_img[1] - circle_radius),
+                            (corner_img[0] + circle_radius, corner_img[1] + circle_radius),
                         ],
-                        outline=(255, 0, 0),
+                        outline=rect_color_rgb,  # 使用矩形颜色
                     )
 
         display_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
@@ -162,11 +136,19 @@ class ImageHandler:
                 display_img,
                 (start_canvas[0] - image_start_x, start_canvas[1] - image_start_y),
                 (end_canvas[0] - image_start_x, end_canvas[1] - image_start_y),
-                rect_color,
+                rect_color,  # 使用原始的 BGR 颜色
                 2,
             )
 
         return display_img
+
+    @staticmethod
+    def is_light_color(color):
+        # Convert BGR to RGB
+        r, g, b = color[::-1]
+        # Calculate luminance
+        luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+        return luminance > 0.5
 
 
 class ImageProcessor:
@@ -174,12 +156,12 @@ class ImageProcessor:
         self.img = img
         self.plt = plt
         self.show_progress_bar = show_progress_bar
-
+        self.plt = plt
     def save_plot_image(self):
         if self.img is None:
             messagebox.showerror("Error", "Please select an image first.")
             return
-
+            messagebox.showerror("Error", "Please select an image first.")
         current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = filedialog.asksaveasfilename(
             defaultextension=".png",
@@ -188,17 +170,15 @@ class ImageProcessor:
             filetypes=[("PNG files", "*.png"), ("All files", "*.*")],
         )
         if filename:
-
             def save_task():
                 self.plt.savefig(filename, dpi=300, bbox_inches="tight")
                 return True
-
             self._handle_save_result(
                 self.show_progress_bar("Saving Chart Image", save_task), "Chart image"
             )
-
+            self.show_progress_bar("Saving Chart Image", save_task), "Chart image"
     @staticmethod
-    def save_gray_img(cv2, gray_img, rectangles, show_progress_bar):
+    def save_gray_img(cv2, gray_img, rectangles, rect_color, show_progress_bar):
         if gray_img is None:
             messagebox.showerror("Error", "Please select an image first.")
             return
@@ -212,10 +192,9 @@ class ImageProcessor:
         )
 
         if filename:
-
             def save_task():
                 img_with_rectangles = ImageProcessor._draw_rectangles(
-                    cv2, gray_img, rectangles
+                    cv2, gray_img, rectangles, rect_color
                 )
                 cv2.imwrite(filename, img_with_rectangles)
                 return True
@@ -224,36 +203,58 @@ class ImageProcessor:
                 show_progress_bar("Saving Gray Image", save_task),
                 "Gray image with rectangles and names",
             )
-
+            
     @staticmethod
-    def _draw_rectangles(cv2, gray_img, rectangles):
+    def _draw_rectangles(cv2, gray_img, rectangles, rect_color):
         img_with_rectangles = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2RGB)
-
-        # 创建一个PIL Image对象
-        pil_img = Image.fromarray(cv2.cvtColor(img_with_rectangles, cv2.COLOR_BGR2RGB))
+        pil_img = Image.fromarray(img_with_rectangles)
         draw = ImageDraw.Draw(pil_img)
 
-        # 加载字体
         try:
             font_path = os.path.join(
                 ImageProcessor.get_base_path(), "assets", "fonts", "MicrosoftYaHei.ttf"
             )
             font = ImageFont.truetype(font_path, 20)
         except IOError:
+            print(f"Error: Font file not found at {font_path}")
             font = ImageFont.load_default()
 
-        for rect in rectangles:
-            start, end, name, _ = rect
-            # 在图像上绘制矩形框，使用蓝色（RGB格式），线宽为1
-            draw.rectangle([start, end], outline=(0, 0, 255), width=1)
+        def is_light_color(color):
+            return (0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2]) / 255 > 0.5
 
-            # 设置文本位置，略微在矩形框上方
-            text_x, text_y = start[0], start[1] - 25
+        rect_color_rgb = rect_color[::-1]  # 转换 BGR 到 RGB
 
-            # 在图像上绘制文本，使用实际的名称
-            draw.text((text_x, text_y), name, font=font, fill=(0, 0, 255))
+        for start, end, name, _ in rectangles:
+            draw.rectangle([start, end], outline=rect_color_rgb, width=2)
 
-        # 将PIL Image转换回OpenCV格式
+            left, top, right, bottom = draw.textbbox((0, 0), name, font=font)
+            text_width = right - left
+            text_height = bottom - top
+            rect_width = end[0] - start[0]
+
+            if text_width + 10 > rect_width:
+                text_position = (start[0], start[1] - text_height - 5)
+            else:
+                text_position = (start[0] + 5, start[1] + 5)
+
+            # 创建半透明背景
+            bg_color = (*rect_color_rgb, 128)  # 添加 alpha 通道实现半透明
+            text_bg = [
+                text_position[0] - 2,
+                text_position[1] - 2,
+                text_position[0] + text_width + 2,
+                text_position[1] + text_height + 10
+            ]
+            draw.rectangle(text_bg, fill=bg_color)
+
+            # 根据背景亮度选择文本颜色
+            if is_light_color(rect_color):
+                text_color = (0, 0, 0)  # 深色背景使用黑色文本
+            else:
+                text_color = (255, 255, 255)  # 浅色背景使用白色文本
+
+            draw.text(text_position, name, font=font, fill=text_color)
+
         return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
 
     @staticmethod
