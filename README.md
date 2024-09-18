@@ -51,11 +51,11 @@ pip install pyinstaller
 To create a standalone executable:
 
 ```
-pyinstaller --onefile --windowed --icon ./logo.ico ./main.py -n "Grayscale Converter"
+pyinstaller --onefile --windowed --icon ./assets/images/logo.ico --add-data assets/fonts/MicrosoftYaHei.ttf:assets/fonts ./main.py -n "Grayscale Converter"
 ```
 
 ```
-pyinstaller --onedir --windowed --icon ./logo.ico ./main.py -n "Grayscale Converter"
+pyinstaller --onedir --windowed --icon ./assets/images/logo.ico --add-data assets/fonts/MicrosoftYaHei.ttf:assets/fonts ./main.py -n "Grayscale Converter"
 ```
 
 ## License

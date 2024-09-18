@@ -1,4 +1,6 @@
 # -- coding: UTF-8 --
+import os
+import sys
 import cv2
 import tkinter as tk
 from tkinter import ttk, filedialog, Menu, Scale, Entry, simpledialog
@@ -7,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import messagebox
 import numpy as np
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw, ImageFont
 from utils.launch_loading import show_loading_screen
 from utils.show_progress_bar import show_progress_bar
 from utils.color_handle import hex_to_bgr
@@ -15,7 +17,7 @@ from utils.excel_exporter import ExcelExporter
 
 class GrayScaleAnalyzer:
     def __init__(self):
-        self.rect_color = (0, 0, 255)  # BGR 格式，红色
+        self.rect_color = (0, 255, 0)  # BGR 格式，绿色
         self.current_image = None
         self.gray_image_canvas = None
         self.plot_canvas = None
@@ -466,41 +468,83 @@ class GrayScaleAnalyzer:
             return
 
         display_img = self.scaled_img.copy()
+        pil_img = Image.fromarray(cv2.cvtColor(display_img, cv2.COLOR_BGR2RGB))
+        draw = ImageDraw.Draw(pil_img)
+        
+        # Get the base path
+        if getattr(sys, 'frozen', False):
+            # we are running in a bundle
+            base_path = sys._MEIPASS
+        else:
+            # we are running in a normal Python environment
+            base_path = os.path.dirname(os.path.abspath(__file__))
 
-        # 绘制现有的矩形
+        # Construct the path to the font file
+        font_path = os.path.join(base_path, 'assets', 'fonts', 'MicrosoftYaHei.ttf')
+
+        # Load the font
+        try:
+            font = ImageFont.truetype(font_path, 15)
+        except IOError:
+            print(f"Error: Font file not found at {font_path}")
+            # Fallback to a default system font
+            font = ImageFont.load_default()
+
         for start, end, name, _ in self.rectangles:
             start_canvas = self.image_to_canvas_coords(*start)
             end_canvas = self.image_to_canvas_coords(*end)
-            cv2.rectangle(display_img, 
-                        (start_canvas[0] - self.image_start_x, start_canvas[1] - self.image_start_y),
-                        (end_canvas[0] - self.image_start_x, end_canvas[1] - self.image_start_y), 
-                        self.rect_color, 2)
             
-            # 计算文本位置（矩形内部左上角）
-            text_position = (start_canvas[0] - self.image_start_x + 5, start_canvas[1] - self.image_start_y + 20)
+            # 绘制矩形
+            draw.rectangle([
+                (start_canvas[0] - self.image_start_x, start_canvas[1] - self.image_start_y),
+                (end_canvas[0] - self.image_start_x, end_canvas[1] - self.image_start_y)
+            ], outline=(0, 0, 255), width=2)  # 蓝色，RGB格式
             
-            # 获取文本大小
-            (text_width, text_height), _ = cv2.getTextSize(name, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            # 计算文本大小
+            left, top, right, bottom = draw.textbbox((0, 0), name, font=font)
+            text_width = right - left
+            text_height = bottom - top
+            rect_width = end_canvas[0] - start_canvas[0]
             
-            # 绘制半透明背景
-            bg_start = (text_position[0] - 2, text_position[1] - text_height - 2)
-            bg_end = (text_position[0] + text_width + 2, text_position[1] + 2)
-            cv2.rectangle(display_img, bg_start, bg_end, (255, 255, 255), -1)
-            cv2.rectangle(display_img, bg_start, bg_end, self.rect_color, 1)
+            # 决定文本位置
+            if text_width + 10 > rect_width:  # 10是左右边距
+                text_position = (start_canvas[0] - self.image_start_x, start_canvas[1] - self.image_start_y - text_height - 5)
+            else:
+                text_position = (start_canvas[0] - self.image_start_x + 5, start_canvas[1] - self.image_start_y + 5)
+            
+            # 绘制文本背景
+            text_bg = [
+                text_position[0] - 2,
+                text_position[1] - 2,
+                text_position[0] + text_width + 2,
+                text_position[1] + text_height + 2
+            ]
+            draw.rectangle(text_bg, fill=(255, 255, 255))  # 白色背景
+            # draw.rectangle(text_bg, outline=(0, 0, 255))   # 蓝色边框
             
             # 绘制文本
-            cv2.putText(display_img, name, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, self.rect_color, 1, cv2.LINE_AA)
-            
-            # 在四个角上绘制小圆圈
+            draw.text(text_position, name, font=font, fill=(0, 0, 255))  # 蓝色，RGB格式
+
+            # 绘制四个角的圆点缩放处理器
             corners = [start_canvas, (start_canvas[0], end_canvas[1]), end_canvas, (end_canvas[0], start_canvas[1])]
             for corner in corners:
                 corner_img = (corner[0] - self.image_start_x, corner[1] - self.image_start_y)
                 if highlight_corner and self.is_point_near_corner(
                     highlight_corner[0], highlight_corner[1], corner, corner
                 ):
-                    cv2.circle(display_img, corner_img, self.circle_radius, self.highlight_color, -1)
+                    draw.ellipse([
+                        (corner_img[0] - self.circle_radius, corner_img[1] - self.circle_radius),
+                        (corner_img[0] + self.circle_radius, corner_img[1] + self.circle_radius)
+                    ], fill=(0, 255, 0))  # 绿色，RGB格式
                 else:
-                    cv2.circle(display_img, corner_img, self.circle_radius, self.rect_color, 1)
+                    draw.ellipse([
+                        (corner_img[0] - self.circle_radius, corner_img[1] - self.circle_radius),
+                        (corner_img[0] + self.circle_radius, corner_img[1] + self.circle_radius)
+                    ], outline=(255, 0, 0))  # 红色，RGB格式
+
+        # 将 PIL 图像转回 OpenCV 格式
+        display_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+
         # 绘制正在绘制的矩形
         if drawing and self.rect_start and self.rect_end:
             start_canvas = self.image_to_canvas_coords(*self.rect_start)
