@@ -4,7 +4,7 @@ import time
 
 class LoadingScreen:
     def __init__(
-        self, width=300, height=100, title="", text="launching...", font=("Arial", 16)
+        self, width=300, height=100, title="", text="Launching...", font=("Arial", 16)
     ):
         self.width = width
         self.height = height

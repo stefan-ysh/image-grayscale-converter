@@ -15,9 +15,6 @@ from utils.excel_exporter import ExcelExporter
 
 class GrayScaleAnalyzer:
     def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("GrayScale Analyzer")
-        self.root.geometry("1200x800")
         self.rect_color = (0, 0, 255)  # BGR 格式，红色
         self.current_image = None
         self.gray_image_canvas = None
@@ -60,7 +57,6 @@ class GrayScaleAnalyzer:
         plt.rcParams['font.sans-serif'] = ['SimHei']  # 使用黑体
         plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
         
-        self.create_main_window()
         
     def save_chart_image(self):
         if self.image_processor:
@@ -91,7 +87,7 @@ class GrayScaleAnalyzer:
         # Create button frame at the top
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=10)
-
+        
         # Create buttons
         buttons = [
             ("Select Image", self.select_image, tk.NORMAL),
@@ -695,9 +691,34 @@ class GrayScaleAnalyzer:
             self.root.destroy()
 
     def run(self):
+        self.root = tk.Tk()
+        self.root.withdraw()  # 先隐藏主窗口
+        
+        # 显示加载屏幕
+        show_loading_screen()
+        
+        # 配置主窗口
+        self.root.title("GrayScale Analyzer")
+        self.root.geometry("1200x800")
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing_root_win)
+        self.create_main_window()
+        
+        # 确保主窗口完全加载
+        self.root.update_idletasks()
+        
+        # 隐藏加载屏幕（假设它是顶层窗口）
+        for widget in self.root.winfo_children():
+            if isinstance(widget, tk.Toplevel):
+                widget.destroy()
+        
+        # 显示主窗口
+        self.root.deiconify()
+        
         self.root.mainloop()
 
-# Create and run the application
-app = GrayScaleAnalyzer()
-app.run()
+def main():
+    app = GrayScaleAnalyzer()
+    app.run()
+
+if __name__ == "__main__":
+    main()
