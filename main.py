@@ -9,11 +9,13 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import messagebox
 import numpy as np
-from PIL import Image, ImageTk, ImageDraw, ImageFont
+from PIL import Image, ImageTk
 from utils.launch_loading import show_loading_screen
 from utils.show_progress_bar import show_progress_bar
-from utils.color_handle import hex_to_bgr
-from utils.excel_exporter import ExcelExporter
+from utils.image_utils import ImageHandler
+from utils.plot_handler import PlotHandler
+from utils.rectangle_handler import RectangleHandler
+
 
 class GrayScaleAnalyzer:
     def __init__(self):
@@ -59,7 +61,10 @@ class GrayScaleAnalyzer:
         plt.rcParams['font.sans-serif'] = ['SimHei']  # 使用黑体
         plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
         
-        
+        self.image_handler = ImageHandler()
+        self.plot_handler = PlotHandler()
+        self.rectangle_handler = RectangleHandler()
+
     def save_chart_image(self):
         if self.image_processor:
             self.image_processor.save_plot_image()
@@ -71,8 +76,8 @@ class GrayScaleAnalyzer:
             self.image_processor.save_gray_img(cv2, self.gray_img, self.rectangles, show_progress_bar)
         else:
             messagebox.showerror("Error", "Please select an image first.")
+
     def on_canvas_resize(self, event):
-        # 只在画布大小真正改变时更新图像
         if event.width != self.last_width or event.height != self.last_height:
             self.last_width = event.width
             self.last_height = event.height
@@ -158,7 +163,6 @@ class GrayScaleAnalyzer:
         if not filename:
             return
         
-        # 清除之前的所有数据
         self.clear_all_data()
         
         img = cv2.imdecode(np.fromfile(filename, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
@@ -172,11 +176,10 @@ class GrayScaleAnalyzer:
         self.save_chart_button.config(state=tk.NORMAL)
         self.export_button.config(state=tk.NORMAL)
         self.save_gray_image_button.config(state=tk.NORMAL)
-        self.update_plot()
+        self.plot_handler.update_plot(self.plot_canvas, self.rectangles, self.original_img, self.line_width, self.line_color)
 
         self.excel_exporter = ExcelExporter(self.gray_img)
         
-        # Update the image_processor with the new image
         self.image_processor = self.get_image_processor()
 
     def clear_all_data(self):
@@ -204,40 +207,11 @@ class GrayScaleAnalyzer:
 
     def update_gray_image(self):
         if self.original_img is not None:
-            self.scale_image()
+            self.scaled_img, self.scale_factor, self.image_start_x, self.image_start_y = self.image_handler.scale_image(
+                self.original_img, self.gray_image_canvas.winfo_width(), self.gray_image_canvas.winfo_height()
+            )
             self.display_scaled_image()
-            self.update_plot()  # 如果需要，更新图表
-
-    def scale_image(self):
-        if self.original_img is None:
-            return
-
-        canvas_width = self.gray_image_canvas.winfo_width()
-        canvas_height = self.gray_image_canvas.winfo_height()
-
-        img_height, img_width = self.original_img.shape[:2]
-        
-        width_ratio = canvas_width / img_width
-        height_ratio = canvas_height / img_height
-        self.scale_factor = min(width_ratio, height_ratio)
-
-        new_width = int(img_width * self.scale_factor)
-        new_height = int(img_height * self.scale_factor)
-
-        self.scaled_img = cv2.resize(self.original_img, (new_width, new_height), interpolation=cv2.INTER_AREA)
-        
-        self.image_start_x = (canvas_width - new_width) // 2
-        self.image_start_y = (canvas_height - new_height) // 2
-
-    def canvas_to_image_coords(self, x, y):
-        image_x = int((x - self.image_start_x) / self.scale_factor)
-        image_y = int((y - self.image_start_y) / self.scale_factor)
-        return (image_x, image_y)
-
-    def image_to_canvas_coords(self, x, y):
-        canvas_x = int(x * self.scale_factor + self.image_start_x)
-        canvas_y = int(y * self.scale_factor + self.image_start_y)
-        return (canvas_x, canvas_y)
+            self.plot_handler.update_plot(self.plot_canvas, self.rectangles, self.original_img, self.line_width, self.line_color)
 
     def display_scaled_image(self):
         if self.scaled_img is None:
@@ -270,21 +244,21 @@ class GrayScaleAnalyzer:
             self.root.after(100, self.update_image_after_resize)
 
     def on_mouse_press(self, event):
-        x, y = self.canvas_to_image_coords(event.x, event.y)
+        x, y = self.image_handler.canvas_to_image_coords(event.x, event.y, self.image_start_x, self.image_start_y, self.scale_factor)
         for i, (start, end, name, max_points) in enumerate(self.rectangles):
-            if self.is_point_in_rect(x, y, start, end):
+            if self.rectangle_handler.is_point_in_rect(x, y, start, end):
                 self.dragging = i
                 self.drag_start = (x, y)
                 return
-            elif self.is_point_near_corner(x, y, start, end):
-                self.resizing = self.get_resize_direction(x, y, start, end)
+            elif self.rectangle_handler.is_point_near_corner(x, y, start, end):
+                self.resizing = self.rectangle_handler.get_resize_direction(x, y, start, end)
                 self.drag_start = (x, y)
                 return
         self.rect_start = (x, y)
         self.rect_end = None
 
     def on_mouse_move(self, event):
-        x, y = self.canvas_to_image_coords(event.x, event.y)
+        x, y = self.image_handler.canvas_to_image_coords(event.x, event.y, self.image_start_x, self.image_start_y, self.scale_factor)
         if self.dragging is not None:
             dx = x - self.drag_start[0]
             dy = y - self.drag_start[1]
@@ -302,8 +276,8 @@ class GrayScaleAnalyzer:
             self.update_display_image()
         elif self.resizing is not None:
             for i, (start, end, name, max_points) in enumerate(self.rectangles):
-                if self.is_point_near_corner(self.drag_start[0], self.drag_start[1], start, end):
-                    new_start, new_end = self.resize_rectangle(start, end, x, y, self.resizing)
+                if self.rectangle_handler.is_point_near_corner(self.drag_start[0], self.drag_start[1], start, end):
+                    new_start, new_end = self.rectangle_handler.resize_rectangle(start, end, x, y, self.resizing, self.MIN_RECT_WIDTH, self.MIN_RECT_HEIGHT)
                     width = abs(new_end[0] - new_start[0])
                     height = abs(new_end[1] - new_start[1])
                     if width >= self.MIN_RECT_WIDTH and height >= self.MIN_RECT_HEIGHT:
@@ -316,8 +290,8 @@ class GrayScaleAnalyzer:
             self.update_display_image(drawing=True)  # 添加 drawing 参数
         else:
             for start, end, _, _ in self.rectangles:
-                if self.is_point_near_corner(x, y, start, end):
-                    self.update_display_image(highlight_corner=self.image_to_canvas_coords(x, y))
+                if self.rectangle_handler.is_point_near_corner(x, y, start, end):
+                    self.update_display_image(highlight_corner=self.image_handler.image_to_canvas_coords(x, y, self.image_start_x, self.image_start_y, self.scale_factor))
                     return
             self.update_display_image()
 
@@ -357,21 +331,21 @@ class GrayScaleAnalyzer:
     def on_mouse_hover(self, event):
         cursor = "arrow"
         for start, end, _, _ in self.rectangles:
-            start_canvas = self.image_to_canvas_coords(*start)
-            end_canvas = self.image_to_canvas_coords(*end)
-            if self.is_point_near_corner(event.x, event.y, start_canvas, end_canvas):
+            start_canvas = self.image_handler.image_to_canvas_coords(*start, self.image_start_x, self.image_start_y, self.scale_factor)
+            end_canvas = self.image_handler.image_to_canvas_coords(*end, self.image_start_x, self.image_start_y, self.scale_factor)
+            if self.rectangle_handler.is_point_near_corner(event.x, event.y, start_canvas, end_canvas):
                 self.update_display_image(highlight_corner=(event.x, event.y))
                 cursor = "sizing"
                 break
-            elif self.is_point_in_rect(event.x, event.y, start_canvas, end_canvas):
+            elif self.rectangle_handler.is_point_in_rect(event.x, event.y, start_canvas, end_canvas):
                 cursor = "fleur"
                 break
         self.gray_image_canvas.config(cursor=cursor)
 
     def on_right_click(self, event):
-        x, y = self.canvas_to_image_coords(event.x, event.y)
+        x, y = self.image_handler.canvas_to_image_coords(event.x, event.y, self.image_start_x, self.image_start_y, self.scale_factor)
         for i, (start, end, name, max_points) in enumerate(self.rectangles):
-            if self.is_point_in_rect(x, y, start, end):
+            if self.rectangle_handler.is_point_in_rect(x, y, start, end):
                 menu = Menu(self.root, tearoff=0)
                 menu.add_command(label="Rename", command=lambda: self.rename_rectangle(i))
                 menu.add_command(label="Delete", command=lambda: self.delete_rectangle(i))
@@ -467,147 +441,20 @@ class GrayScaleAnalyzer:
         if self.scaled_img is None:
             return
 
-        display_img = self.scaled_img.copy()
-        pil_img = Image.fromarray(cv2.cvtColor(display_img, cv2.COLOR_BGR2RGB))
-        draw = ImageDraw.Draw(pil_img)
-        
-        # Get the base path
-        if getattr(sys, 'frozen', False):
-            # we are running in a bundle
-            base_path = sys._MEIPASS
-        else:
-            # we are running in a normal Python environment
-            base_path = os.path.dirname(os.path.abspath(__file__))
+        display_img = self.image_handler.update_display_image(
+            self.scaled_img, self.rectangles, self.image_start_x, self.image_start_y,
+            self.circle_radius, self.rect_color, self.rect_start, self.rect_end,
+            os.path.join(self.get_base_path(), 'assets', 'fonts', 'MicrosoftYaHei.ttf'),
+            highlight_corner, drawing, self.scale_factor
+        )
 
-        # Construct the path to the font file
-        font_path = os.path.join(base_path, 'assets', 'fonts', 'MicrosoftYaHei.ttf')
-
-        # Load the font
-        try:
-            font = ImageFont.truetype(font_path, 15)
-        except IOError:
-            print(f"Error: Font file not found at {font_path}")
-            # Fallback to a default system font
-            font = ImageFont.load_default()
-
-        for start, end, name, _ in self.rectangles:
-            start_canvas = self.image_to_canvas_coords(*start)
-            end_canvas = self.image_to_canvas_coords(*end)
-            
-            # 绘制矩形
-            draw.rectangle([
-                (start_canvas[0] - self.image_start_x, start_canvas[1] - self.image_start_y),
-                (end_canvas[0] - self.image_start_x, end_canvas[1] - self.image_start_y)
-            ], outline=(0, 0, 255), width=2)  # 蓝色，RGB格式
-            
-            # 计算文本大小
-            left, top, right, bottom = draw.textbbox((0, 0), name, font=font)
-            text_width = right - left
-            text_height = bottom - top
-            rect_width = end_canvas[0] - start_canvas[0]
-            
-            # 决定文本位置
-            if text_width + 10 > rect_width:  # 10是左右边距
-                text_position = (start_canvas[0] - self.image_start_x, start_canvas[1] - self.image_start_y - text_height - 5)
-            else:
-                text_position = (start_canvas[0] - self.image_start_x + 5, start_canvas[1] - self.image_start_y + 5)
-            
-            # 绘制文本背景
-            text_bg = [
-                text_position[0] - 2,
-                text_position[1] - 2,
-                text_position[0] + text_width + 2,
-                text_position[1] + text_height + 2
-            ]
-            draw.rectangle(text_bg, fill=(255, 255, 255))  # 白色背景
-            # draw.rectangle(text_bg, outline=(0, 0, 255))   # 蓝色边框
-            
-            # 绘制文本
-            draw.text(text_position, name, font=font, fill=(0, 0, 255))  # 蓝色，RGB格式
-
-            # 绘制四个角的圆点缩放处理器
-            corners = [start_canvas, (start_canvas[0], end_canvas[1]), end_canvas, (end_canvas[0], start_canvas[1])]
-            for corner in corners:
-                corner_img = (corner[0] - self.image_start_x, corner[1] - self.image_start_y)
-                if highlight_corner and self.is_point_near_corner(
-                    highlight_corner[0], highlight_corner[1], corner, corner
-                ):
-                    draw.ellipse([
-                        (corner_img[0] - self.circle_radius, corner_img[1] - self.circle_radius),
-                        (corner_img[0] + self.circle_radius, corner_img[1] + self.circle_radius)
-                    ], fill=(0, 255, 0))  # 绿色，RGB格式
-                else:
-                    draw.ellipse([
-                        (corner_img[0] - self.circle_radius, corner_img[1] - self.circle_radius),
-                        (corner_img[0] + self.circle_radius, corner_img[1] + self.circle_radius)
-                    ], outline=(255, 0, 0))  # 红色，RGB格式
-
-        # 将 PIL 图像转回 OpenCV 格式
-        display_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
-
-        # 绘制正在绘制的矩形
-        if drawing and self.rect_start and self.rect_end:
-            start_canvas = self.image_to_canvas_coords(*self.rect_start)
-            end_canvas = self.image_to_canvas_coords(*self.rect_end)
-            cv2.rectangle(display_img, 
-                        (start_canvas[0] - self.image_start_x, start_canvas[1] - self.image_start_y),
-                        (end_canvas[0] - self.image_start_x, end_canvas[1] - self.image_start_y), 
-                        self.rect_color, 2)
-            
-        # 显示图像
         image = Image.fromarray(cv2.cvtColor(display_img, cv2.COLOR_BGR2RGB))
         self.current_image = ImageTk.PhotoImage(image=image)
         self.gray_image_canvas.delete("all")
         self.gray_image_canvas.create_image(self.image_start_x, self.image_start_y, anchor=tk.NW, image=self.current_image)
     
     def update_plot(self):
-        plt.clf()
-        if not self.rectangles:
-            plt.text(0.5, 0.5, "Please select an image \n to generate a grayscale chart", ha="center", va="center", fontsize=20)
-            plt.axis("off")
-        else:
-            num_plots = len(self.rectangles)
-            cols = 2
-            rows = (num_plots + 1) // cols
-
-            for idx, (start, end, name, max_points) in enumerate(self.rectangles):
-                x1, y1 = start
-                x2, y2 = end
-                x1, x2 = sorted([max(0, min(x1, self.original_img.shape[1])), max(0, min(x2, self.original_img.shape[1]))])
-                y1, y2 = sorted([max(0, min(y1, self.original_img.shape[0])), max(0, min(y2, self.original_img.shape[0]))])
-
-                rect_pixels = self.original_img[y1:y2, x1:x2].flatten()
-
-                if len(rect_pixels) == 0:
-                    continue  # Skip empty rectangles
-
-                if max_points == 0 or len(rect_pixels) <= max_points:
-                    max_points = len(rect_pixels)
-                else:
-                    indices = np.linspace(0, len(rect_pixels) - 1, max_points, dtype=int)
-                    rect_pixels = rect_pixels[indices]
-
-                self.rectangles[idx] = (start, end, name, max_points)
-
-                rect_data = [(i + 1, gray_value) for i, gray_value in enumerate(rect_pixels)]
-
-                row = idx // cols
-                col = idx % cols
-
-                if row == rows - 1 and num_plots % 2 != 0:
-                    ax = plt.subplot(rows, 1, row + 1)
-                else:
-                    ax = plt.subplot(rows, cols, idx + 1)
-
-                x_data = [i for i, _ in rect_data]
-                y_data = [gray_value for _, gray_value in rect_data]
-                ax.plot(x_data, y_data, marker="", linewidth=self.line_width, color=self.line_color)
-                ax.set_title(f"{name} (Points: {max_points})")
-                ax.set_xlabel("Pixel Index")
-                ax.set_ylabel("Grayscale Value")
-
-        plt.tight_layout()
-        self.plot_canvas.draw()
+        self.plot_handler.update_plot(self.plot_canvas, self.rectangles, self.original_img, self.line_width, self.line_color)
 
     def set_line_width(self):
         def update_width(value):
@@ -693,51 +540,21 @@ class GrayScaleAnalyzer:
         else:
             messagebox.showerror("Error", "Please select an image first.")
 
-    def is_point_in_rect(self, x, y, start, end):
-        return min(start[0], end[0]) <= x <= max(start[0], end[0]) and min(start[1], end[1]) <= y <= max(start[1], end[1])
-
-    def is_point_near_corner(self, x, y, start, end, threshold=10):
-        corners = [start, (start[0], end[1]), end, (end[0], start[1])]
-        return any(abs(x - cx) < threshold and abs(y - cy) < threshold for cx, cy in corners)
-
-    def get_resize_direction(self, x, y, start, end, threshold=10):
-        corners = {
-            "top_left": start,
-            "top_right": (end[0], start[1]),
-            "bottom_left": (start[0], end[1]),
-            "bottom_right": end
-        }
-        for direction, (cx, cy) in corners.items():
-            if abs(x - cx) < threshold and abs(y - cy) < threshold:
-                return direction
-        return None
-    
-    def resize_rectangle(self, start, end, x, y, direction):
-        new_start, new_end = list(start), list(end)
-        if direction == "top_left":
-            new_start = [x, y]
-        elif direction == "top_right":
-            new_start[1] = y
-            new_end[0] = x
-        elif direction == "bottom_left":
-            new_start[0] = x
-            new_end[1] = y
-        elif direction == "bottom_right":
-            new_end = [x, y]
-        
-        # Ensure the rectangle meets minimum size requirements
-        if abs(new_end[0] - new_start[0]) < self.MIN_RECT_WIDTH or abs(new_end[1] - new_start[1]) < self.MIN_RECT_HEIGHT:
-            return start, end
-        
-        return tuple(new_start), tuple(new_end)
-
     def get_image_processor(self):
-        from utils.image_processor import ImageProcessor
+        from utils.image_utils import ImageProcessor
         return ImageProcessor(self.gray_img, plt, show_progress_bar)
 
     def on_closing_root_win(self):
         if messagebox.askokcancel("Quit", "Are you sure to quit?"):
             self.root.destroy()
+
+    def get_base_path(self):
+        if getattr(sys, 'frozen', False):
+            # we are running in a bundle
+            return sys._MEIPASS
+        else:
+            # we are running in a normal Python environment
+            return os.path.dirname(os.path.abspath(__file__))
 
     def run(self):
         self.root = tk.Tk()
