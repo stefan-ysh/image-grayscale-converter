@@ -87,28 +87,33 @@ class GrayScaleAnalyzer:
         # Create button frame at the top
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=10)
-        
-        # Create buttons
-        buttons = [
-            ("Select Image", self.select_image, tk.NORMAL),
-            (f"Max Points ({self.MAX_POINTS})", self.set_max_points, tk.NORMAL),
-            ("Line Width", self.set_line_width, tk.NORMAL),
-            ("Save Chart Image", self.save_chart_image, tk.DISABLED),  # 修改这一行
-            ("Export Data", self.export_data_to_excel, tk.DISABLED),
-            ("Save Gray Image", self.save_gray_image, tk.DISABLED)  # 修改这一行
-        ]
 
-        for i, (text, command, state) in enumerate(buttons):
-            button = ttk.Button(button_frame, text=text, command=command, state=state)
-            button.grid(row=0, column=i, sticky="ew", padx=5, pady=5)
-            if "Chart" in text:
-                self.save_chart_button = button
-            elif "Export" in text:
-                self.export_button = button
-            elif "Gray Image" in text:
-                self.save_gray_image_button = button
-            elif "Max Points" in text:
-                self.set_max_points_num_button = button
+        # Create sub-frames for button categories
+        image_frame = ttk.LabelFrame(button_frame, text="Image")
+        image_frame.pack(side=tk.LEFT, padx=5, pady=5)
+
+        chart_frame = ttk.LabelFrame(button_frame, text="Chart")
+        chart_frame.pack(side=tk.LEFT, padx=5, pady=5)
+
+        export_frame = ttk.LabelFrame(button_frame, text="Export")
+        export_frame.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Create buttons
+        ttk.Button(image_frame, text="Select Image", command=self.select_image).pack(side=tk.LEFT, padx=5, pady=5)
+        
+        self.set_max_points_num_button = ttk.Button(chart_frame, text=f"Max Points ({self.MAX_POINTS})", command=self.set_max_points)
+        self.set_max_points_num_button.pack(side=tk.LEFT, padx=5, pady=5)
+        
+        ttk.Button(chart_frame, text="Line Width", command=self.set_line_width).pack(side=tk.LEFT, padx=5, pady=5)
+        
+        self.save_chart_button = ttk.Button(export_frame, text="Save Chart Image", command=self.save_chart_image, state=tk.DISABLED)
+        self.save_chart_button.pack(side=tk.LEFT, padx=5, pady=5)
+        
+        self.export_button = ttk.Button(export_frame, text="Export Data", command=self.export_data_to_excel, state=tk.DISABLED)
+        self.export_button.pack(side=tk.LEFT, padx=5, pady=5)
+        
+        self.save_gray_image_button = ttk.Button(export_frame, text="Save Gray Image", command=self.save_gray_image, state=tk.DISABLED)
+        self.save_gray_image_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         # 创建水平分割的布局
         self.paned_window = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
