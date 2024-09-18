@@ -1,6 +1,8 @@
 # -- coding: UTF-8 --
 from tkinter import messagebox, filedialog
 from datetime import datetime
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 
 class ImageProcessor:
@@ -61,24 +63,32 @@ class ImageProcessor:
 
     @staticmethod
     def _draw_rectangles(cv2, gray_img, rectangles):
-        img_with_rectangles = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2BGR)
+        img_with_rectangles = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2RGB)
+        
+        # 创建一个PIL Image对象
+        pil_img = Image.fromarray(cv2.cvtColor(img_with_rectangles, cv2.COLOR_BGR2RGB))
+        draw = ImageDraw.Draw(pil_img)
+        
+        # 加载字体
+        try:
+            font = ImageFont.truetype("assets/fonts/MicrosoftYaHei.ttf", 20)
+        except IOError:
+            font = ImageFont.load_default()
+
         for rect in rectangles:
-            start, end, name, _ = rect  # 解包时包括名称
-            # 在图像上绘制矩形框，使用蓝色（BGR格式），线宽为2
-            cv2.rectangle(img_with_rectangles, start, end, (255, 0, 0), 2)
+            start, end, name, _ = rect
+            # 在图像上绘制矩形框，使用蓝色（RGB格式），线宽为2
+            draw.rectangle([start, end], outline=(0, 0, 255), width=1)
+            
             # 设置文本位置，略微在矩形框上方
-            text_x, text_y = start[0], start[1] - 10
+            text_x, text_y = start[0], start[1] - 25
+            
             # 在图像上绘制文本，使用实际的名称
-            cv2.putText(
-                img_with_rectangles,
-                name,  # 使用传入的实际名称
-                (text_x, text_y),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (255, 0, 0),
-                1,
-            )
-        return img_with_rectangles
+            draw.text((text_x, text_y), name, font=font, fill=(0, 0, 255))
+
+        # 将PIL Image转换回OpenCV格式
+        return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+
 
     @staticmethod
     def _handle_save_result(result, image_type):
