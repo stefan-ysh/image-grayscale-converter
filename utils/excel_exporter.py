@@ -7,110 +7,110 @@ from utils.show_progress_bar import show_progress_bar
 
 
 class ExcelExporter:
+    '''
+    ExcelExporter is a class that exports the pixel data to an excel file
+    '''
+    LINE_WIDTH = 4800
+    LINE_COLOR = "0000FF"
+    MAX_SHEET_NAME_LENGTH = 31
+
     def __init__(self, gray_img):
         self.gray_img = gray_img
+    
+    def _get_filename(self, default_name):
+        current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        return filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            title="Save Data as Excel File",
+            initialfile=f"{default_name}_{current_time}.xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+        )
 
-    def export_data_to_excel(self, rectangles):
+
+    def _process_rectangle(self, start, end, max_points):
+        x1, y1 = start
+        x2, y2 = end
+        x1, x2 = sorted([max(0, min(x, self.gray_img.shape[1] - 1)) for x in (x1, x2)])
+        y1, y2 = sorted([max(0, min(y, self.gray_img.shape[0] - 1)) for y in (y1, y2)])
+        
+        rect_pixels = self.gray_img[y1:y2+1, x1:x2+1].flatten()
+        total_points = len(rect_pixels)
+
+        if total_points > max_points and max_points != 0:
+            indices = np.linspace(0, total_points - 1, max_points, dtype=int)
+            rect_pixels = rect_pixels[indices]
+        else:
+            indices = np.arange(total_points)
+            max_points = total_points
+
+        x_coords = x1 + (indices % (x2 - x1 + 1))
+        y_coords = self.gray_img.shape[0] - (y1 + (indices // (x2 - x1 + 1))) - 1
+
+        df = pd.DataFrame({
+            "Index": np.arange(1, len(indices) + 1),
+            "Grayscale": rect_pixels,
+            "X": x_coords,
+            "Y": y_coords
+        })
+
+        return df, max_points
+
+    def _add_chart(self, worksheet, df, name, max_points):
+        chart = LineChart()
+        chart.title = f"Grayscale Value vs Index - {name}"
+        chart.style = 13
+        chart.x_axis.title = "Index"
+        chart.y_axis.title = "Grayscale Value"
+
+        data = Reference(worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1)
+        categories = Reference(worksheet, min_col=1, min_row=2, max_row=len(df) + 1)
+
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(categories)
+        chart.x_axis.scaling.max = max_points
+
+        s = chart.series[0]
+        s.graphicalProperties.line.solidFill = self.LINE_COLOR
+        s.graphicalProperties.line.width = self.LINE_WIDTH
+
+        worksheet.add_chart(chart, "F2")
+
+    def _export_data(self, filename, rectangles, single_rectangle=False):
         if self.gray_img is None:
             messagebox.showerror("Error", "Please select an image first.")
             return
-
-        current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = filedialog.asksaveasfilename(
-            defaultextension=".xlsx",
-            title="Save Data as Excel File",
-            initialfile=f"pixel_data_{current_time}.xlsx",
-            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
-        )
 
         if not filename:
             return
 
         def export_task():
-            with pd.ExcelWriter(filename, engine="openpyxl") as writer:
-                for idx, (start, end, name, max_points) in enumerate(rectangles):
-                    x1, y1 = start
-                    x2, y2 = end
-                    x1, x2 = sorted(
-                        [
-                            max(0, min(x1, self.gray_img.shape[1])),
-                            max(0, min(x2, self.gray_img.shape[1])),
-                        ]
-                    )
-                    y1, y2 = sorted(
-                        [
-                            max(0, min(y1, self.gray_img.shape[0])),
-                            max(0, min(y2, self.gray_img.shape[0])),
-                        ]
-                    )
-                    rect_pixels = self.gray_img[y1:y2, x1:x2].flatten()
+            try:
+                with pd.ExcelWriter(filename, engine="openpyxl") as writer:
+                    rect_data = [rectangles] if single_rectangle else rectangles
 
-                    total_points = len(rect_pixels)
-                    if total_points > max_points:
-                        indices = np.linspace(
-                            0, total_points - 1, max_points, dtype=int
-                        )
-                        rect_pixels = rect_pixels[indices]
-                    else:
-                        indices = np.arange(total_points)
-                        max_points = total_points  # 更新max_points为实际点数
+                    for start, end, name, max_points in rect_data:
+                        print(start, end, name, max_points)
+                        df, max_points = self._process_rectangle(start, end, max_points)
+                        sheet_name = name[:self.MAX_SHEET_NAME_LENGTH]  # Limit sheet name to 31 characters
+                        df.to_excel(writer, sheet_name=sheet_name, index=False)
+                        self._add_chart(writer.sheets[sheet_name], df, name, max_points)
 
-                    data = []
-                    for i, (index, gray_value) in enumerate(zip(indices, rect_pixels)):
-                        x_coord = x1 + (index % (x2 - x1))
-                        y_coord = (
-                            self.gray_img.shape[0] - (y1 + (index // (x2 - x1))) - 1
-                        )
-                        data.append([i + 1, gray_value, x_coord, y_coord])
+                return True
+            except Exception as e:
+                print(f"Error exporting data: {str(e)}")
+                return False
 
-                    df = pd.DataFrame(data, columns=["Index", "Grayscale", "X", "Y"])
-                    sheet_name = f"{name}"  # 使用矩形的名称作为sheet名称
-
-                    # 确保sheet名称是唯一的
-                    base_name = sheet_name
-                    counter = 1
-                    while sheet_name in writer.sheets:
-                        sheet_name = f"{base_name}_{counter}"
-                        counter += 1
-
-                    df.to_excel(writer, sheet_name=sheet_name, index=False)
-
-                    # 在这里创建和添加图表
-                    worksheet = writer.sheets[sheet_name]
-
-                    chart = LineChart()
-                    chart.title = f"Grayscale Value vs Index - {name}"
-                    chart.style = 13
-                    chart.x_axis.title = "Index"
-                    chart.y_axis.title = "Grayscale Value"
-
-                    data = Reference(
-                        worksheet, min_col=2, min_row=1, max_col=2, max_row=len(df) + 1
-                    )
-                    categories = Reference(
-                        worksheet, min_col=1, min_row=2, max_row=len(df) + 1
-                    )
-
-                    chart.add_data(data, titles_from_data=True)
-                    chart.set_categories(categories)
-
-                    # 设置x轴的最大值为实际的点数
-                    chart.x_axis.scaling.max = max_points
-
-                    # 设置线条
-                    s = chart.series[0]
-                    s.graphicalProperties.line.solidFill = "0000FF"
-                    s.graphicalProperties.line.width = 4800
-
-                    worksheet.add_chart(chart, "F2")
-
-            return True
-
-        result = show_progress_bar("Exporting Data", export_task)
+        result = show_progress_bar("Exporting Data......", export_task)
 
         if result:
-            messagebox.showinfo(
-                "Success", "Data exported and charts added successfully!"
-            )
+            messagebox.showinfo("Success", "Data exported and charts added successfully!")
         else:
-            messagebox.showerror("Error", "Failed to export data.")
+            messagebox.showerror("Error", "Failed to export data. Check console for details.")
+
+    def export_all_data_to_excel(self, rectangles):
+        filename = self._get_filename("data")
+        self._export_data(filename, rectangles)
+
+    def export_single_rectangle_data(self, start, end, name, max_points):
+        filename = self._get_filename(f"{name}_data")
+        self._export_data(filename, (start, end, name, max_points), single_rectangle=True)

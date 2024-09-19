@@ -128,7 +128,7 @@ class GrayScaleAnalyzer:
         self.save_chart_button = ttk.Button(export_frame, text="Save Chart Image", command=self.save_chart_image, state=tk.DISABLED)
         self.save_chart_button.pack(side=tk.LEFT, padx=5, pady=5)
         
-        self.export_button = ttk.Button(export_frame, text="Export Data", command=self.export_data_to_excel, state=tk.DISABLED)
+        self.export_button = ttk.Button(export_frame, text="Export Data", command=self.export_all_data_to_excel, state=tk.DISABLED)
         self.export_button.pack(side=tk.LEFT, padx=5, pady=5)
         
         self.save_gray_image_button = ttk.Button(export_frame, text="Save Gray Image", command=self.save_gray_image, state=tk.DISABLED)
@@ -353,7 +353,13 @@ class GrayScaleAnalyzer:
                 cursor = "fleur"
                 break
         self.gray_image_canvas.config(cursor=cursor)
-
+    def export_current_rectangle_data(self, rect_index):
+        if self.excel_exporter:
+            start, end, name, max_points = self.rectangles[rect_index]
+            self.excel_exporter.export_single_rectangle_data(start, end, name, max_points)
+        else:
+            messagebox.showerror("Error", "Please select an image first.")
+            
     def on_right_click(self, event):
         x, y = self.image_handler.canvas_to_image_coords(event.x, event.y, self.image_start_x, self.image_start_y, self.scale_factor)
         for i, (start, end, name, max_points) in enumerate(self.rectangles):
@@ -362,6 +368,7 @@ class GrayScaleAnalyzer:
                 menu.add_command(label="Rename", command=lambda: self.rename_rectangle(i))
                 menu.add_command(label="Delete", command=lambda: self.delete_rectangle(i))
                 menu.add_command(label="Change Points", command=lambda: self.edit_rectangle_points(i))
+                menu.add_command(label="Export Current Data", command=lambda: self.export_current_rectangle_data(i))
                 menu.post(event.x_root, event.y_root)
                 return
 
@@ -545,9 +552,9 @@ class GrayScaleAnalyzer:
         y = (self.root.winfo_height() - height) // 2 + self.root.winfo_y()
         top.geometry(f"+{x}+{y}")
 
-    def export_data_to_excel(self):
+    def export_all_data_to_excel(self):
         if self.excel_exporter:
-            self.excel_exporter.export_data_to_excel(self.rectangles)
+            self.excel_exporter.export_all_data_to_excel(self.rectangles)
         else:
             messagebox.showerror("Error", "Please select an image first.")
 
