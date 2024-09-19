@@ -174,7 +174,7 @@ class ImageProcessor:
                 self.plt.savefig(filename, dpi=300, bbox_inches="tight")
                 return True
             self._handle_save_result(
-                self.show_progress_bar("Saving Chart Image", save_task), "Chart image"
+                self.show_progress_bar("Saving Chart Image......", save_task), "Chart image"
             )
     @staticmethod
     def save_gray_img(cv2, gray_img, rectangles, rect_color, show_progress_bar):
@@ -199,7 +199,7 @@ class ImageProcessor:
                 return True
 
             ImageProcessor._handle_save_result(
-                show_progress_bar("Saving Gray Image", save_task),
+                show_progress_bar("Saving Gray Image......", save_task),
                 "Gray image with rectangles and names",
             )
             
