@@ -176,7 +176,6 @@ class ImageProcessor:
             self._handle_save_result(
                 self.show_progress_bar("Saving Chart Image", save_task), "Chart image"
             )
-            self.show_progress_bar("Saving Chart Image", save_task), "Chart image"
     @staticmethod
     def save_gray_img(cv2, gray_img, rectangles, rect_color, show_progress_bar):
         if gray_img is None:
