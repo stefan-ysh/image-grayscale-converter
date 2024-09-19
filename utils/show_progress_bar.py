@@ -17,7 +17,7 @@ def show_progress_bar(title, task_function, *args):
     y = (progress_window.winfo_screenheight() - 100) // 2
     progress_window.geometry(f"300x100+{x}+{y}")
 
-    tk.Label(progress_window, text="Processing...", font=("Arial", 16)).pack(pady=10)
+    tk.Label(progress_window, text=title, font=("Arial", 16)).pack(pady=10)
     progress_window.grab_set()
 
     progress_bar = ttk.Progressbar(progress_window, length=200, mode="indeterminate")
