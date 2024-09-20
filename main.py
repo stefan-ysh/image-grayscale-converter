@@ -123,15 +123,16 @@ class GrayScaleAnalyzer:
         self.set_max_points_num_button = ttk.Button(chart_frame, text=f"Max Points ({self.MAX_POINTS})", command=self.set_max_points)
         self.set_max_points_num_button.pack(side=tk.LEFT, padx=5, pady=5)
         
-        ttk.Button(chart_frame, text="Line Width", command=self.set_line_width).pack(side=tk.LEFT, padx=5, pady=5)
+        self.set_line_width_button = ttk.Button(chart_frame, text=f"Line Width ({self.line_width:.2f})", command=self.set_line_width)
+        self.set_line_width_button.pack(side=tk.LEFT, padx=5, pady=5)
         
-        self.save_chart_button = ttk.Button(export_frame, text="Save Chart Image", command=self.save_chart_image, state=tk.DISABLED)
+        self.save_chart_button = ttk.Button(export_frame, text="Line Chart", command=self.save_chart_image, state=tk.DISABLED)
         self.save_chart_button.pack(side=tk.LEFT, padx=5, pady=5)
         
-        self.export_button = ttk.Button(export_frame, text="Export Data", command=self.export_all_data_to_excel, state=tk.DISABLED)
+        self.export_button = ttk.Button(export_frame, text="Point Data", command=self.export_all_data_to_excel, state=tk.DISABLED)
         self.export_button.pack(side=tk.LEFT, padx=5, pady=5)
         
-        self.save_gray_image_button = ttk.Button(export_frame, text="Save Gray Image", command=self.save_gray_image, state=tk.DISABLED)
+        self.save_gray_image_button = ttk.Button(export_frame, text="Gray Image", command=self.save_gray_image, state=tk.DISABLED)
         self.save_gray_image_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         # 创建水平分割的布局
@@ -366,9 +367,10 @@ class GrayScaleAnalyzer:
             if self.rectangle_handler.is_point_in_rect(x, y, start, end):
                 menu = Menu(self.root, tearoff=0)
                 menu.add_command(label="Rename", command=lambda: self.rename_rectangle(i))
-                menu.add_command(label="Delete", command=lambda: self.delete_rectangle(i))
                 menu.add_command(label="Change Points", command=lambda: self.edit_rectangle_points(i))
                 menu.add_command(label="Export Current Data", command=lambda: self.export_current_rectangle_data(i))
+                menu.add_separator()
+                menu.add_command(label="Delete", command=lambda: self.delete_rectangle(i))
                 menu.post(event.x_root, event.y_root)
                 return
 
@@ -490,7 +492,19 @@ class GrayScaleAnalyzer:
         width_scale.set(self.line_width)
         width_scale.pack(pady=10)
 
-        ttk.Button(top, text="Apply", command=lambda: [self.update_plot(), top.destroy()]).pack(pady=10)
+        def on_confirm():
+            self.set_line_width_button.config(text=f"Line Width ({self.line_width:.2f})")
+            self.update_plot()
+            top.destroy()
+
+        ttk.Button(top, text="Apply", command=on_confirm).pack(pady=10)
+
+        top.update_idletasks()
+        width = top.winfo_width()
+        height = top.winfo_height()
+        x = (self.root.winfo_width() - width) // 2 + self.root.winfo_x()
+        y = (self.root.winfo_height() - height) // 2 + self.root.winfo_y()
+        top.geometry(f"+{x}+{y}")
 
     def set_max_points(self):
         def update_max_points(value):
