@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets/fonts/MicrosoftYaHei.ttf', 'assets/fonts')],
+    datas=[('C:\\Users\\psh007\\AppData\\Local\\GitHubDesktop\\app-3.4.2\\image-grayscale-converter/assets/fonts/MicrosoftYaHei.ttf', 'assets/fonts'), ('C:\\Users\\psh007\\AppData\\Local\\GitHubDesktop\\app-3.4.2\\image-grayscale-converter/assets/images/logo.ico', 'assets/images')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
