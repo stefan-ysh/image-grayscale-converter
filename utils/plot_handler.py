@@ -1,75 +1,93 @@
-import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('WXAgg')  # This line should be before importing pyplot
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 import numpy as np
+import wx
 
 
 class PlotHandler:
     @staticmethod
-    def update_plot(plot_canvas, rectangles, original_img, line_width, line_color):
-        plt.clf()
-        if not rectangles:
-            plt.text(
-                0.5,
-                0.5,
-                "Please select an image \n to generate a grayscale chart",
-                ha="center",
-                va="center",
-                fontsize=20,
-            )
-            plt.axis("off")
+    def create_plot_panel(parent, region_data=None, title="Grayscale Distribution"):
+        """Create a new plot panel with the specified data
+        Args:
+            parent: wx.Panel to add the plot to
+            region_data: Optional numpy array of pixel values
+            title: Title for the plot
+        Returns:
+            wx.Panel containing the plot
+        """
+        # Create matplotlib figure and canvas
+        panel = wx.Panel(parent)
+        figure = Figure(figsize=(6, 4), dpi=100)
+        canvas = FigureCanvas(panel, -1, figure)
+        
+        # Add canvas to panel
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(canvas, 1, wx.EXPAND | wx.ALL, 5)
+        panel.SetSizer(sizer)
+        
+        # Create the plot
+        ax = figure.add_subplot(111)
+        
+        if region_data is None:
+            # Show placeholder text
+            ax.text(0.5, 0.5, 'Select a region to show plot',
+                   horizontalalignment='center',
+                   verticalalignment='center',
+                   transform=ax.transAxes)
+            ax.set_xticks([])
+            ax.set_yticks([])
         else:
-            num_plots = len(rectangles)
-            cols = 2
-            rows = (num_plots + 1) // cols
+            # Plot histogram data
+            points = min(len(region_data.ravel()), 3000)  # Limit points for performance
+            indices = np.linspace(0, len(region_data.ravel())-1, points, dtype=int)
+            data = region_data.ravel()[indices]
+            ax.hist(data, bins=256, range=(0, 256), density=True)
+            ax.set_xlabel('Gray Level')
+            ax.set_ylabel('Frequency')
+            ax.set_title(f'{title} ({points} points)')
+        
+        # Layout and finish
+        figure.tight_layout()
+        canvas.draw()
+        panel.figure = figure
+        panel.canvas = canvas
+        return panel
 
-            for idx, (start, end, name, max_points) in enumerate(rectangles):
-                x1, y1 = start
-                x2, y2 = end
-                x1, x2 = sorted(
-                    [
-                        max(0, min(x1, original_img.shape[1])),
-                        max(0, min(x2, original_img.shape[1])),
-                    ]
-                )
-                y1, y2 = sorted(
-                    [
-                        max(0, min(y1, original_img.shape[0])),
-                        max(0, min(y2, original_img.shape[0])),
-                    ]
-                )
-
-                rect_pixels = original_img[y1:y2, x1:x2].flatten()
-
-                if len(rect_pixels) == 0:
-                    continue
-
-                if max_points == 0 or len(rect_pixels) <= max_points:
-                    max_points = len(rect_pixels)
-                else:
-                    indices = np.linspace(
-                        0, len(rect_pixels) - 1, max_points, dtype=int
-                    )
-                    rect_pixels = rect_pixels[indices]
-
-                rect_data = [
-                    (i + 1, gray_value) for i, gray_value in enumerate(rect_pixels)
-                ]
-
-                row = idx // cols
-                col = idx % cols
-
-                if row == rows - 1 and num_plots % 2 != 0:
-                    ax = plt.subplot(rows, 1, row + 1)
-                else:
-                    ax = plt.subplot(rows, cols, idx + 1)
-
-                x_data = [i for i, _ in rect_data]
-                y_data = [gray_value for _, gray_value in rect_data]
-                ax.plot(
-                    x_data, y_data, marker="", linewidth=line_width, color=line_color
-                )
-                ax.set_title(f"{name} (Points: {max_points})")
-                ax.set_xlabel("Pixel Index")
-                ax.set_ylabel("Grayscale Value")
-
-        plt.tight_layout()
-        plot_canvas.draw()
+    @staticmethod
+    def update_plot(panel, region_data=None, title="Grayscale Distribution"):
+        """Update an existing plot with new data
+        Args:
+            panel: wx.Panel containing the plot
+            region_data: Optional numpy array of pixel values
+            title: Title for the plot
+        """
+        if not hasattr(panel, 'figure') or not hasattr(panel, 'canvas'):
+            return
+            
+        figure = panel.figure
+        canvas = panel.canvas
+        figure.clear()
+        
+        ax = figure.add_subplot(111)
+        if region_data is None:
+            # Show placeholder text
+            ax.text(0.5, 0.5, 'Select a region to show plot',
+                   horizontalalignment='center',
+                   verticalalignment='center',
+                   transform=ax.transAxes)
+            ax.set_xticks([])
+            ax.set_yticks([])
+        else:
+            # Plot histogram data
+            points = min(len(region_data.ravel()), 3000)  # Limit points for performance
+            indices = np.linspace(0, len(region_data.ravel())-1, points, dtype=int)
+            data = region_data.ravel()[indices]
+            ax.hist(data, bins=256, range=(0, 256), density=True)
+            ax.set_xlabel('Gray Level')
+            ax.set_ylabel('Frequency')
+            ax.set_title(f'{title} ({points} points)')
+        
+        figure.tight_layout()
+        canvas.draw()
